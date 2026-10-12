@@ -4,13 +4,26 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/express": "^5.0.6",
+    "@types/pg": "^8.23.1",
+    "prisma": "^7.10.0"
   },
   "peerDependencies": {
     "typescript": "^7"
   },
   "dependencies": {
-    "@types/express": "^5.0.6",
-    "express": "^5.2.1"
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "7",
+    "dotenv": "^18.0.7",
+    "express": "^5.2.1",
+    "pg": "^8.23.1"
+  },
+  "scripts": {
+    "dev": "doppler run -- bun run --watch source/server.ts",
+    "start": "doppler run -- bun run source/server.ts",
+    "migrate": "doppler run -- bunx prisma migrate dev",
+    "generate": "doppler run -- bunx prisma generate",
+    "studio": "doppler run -- bunx prisma studio"
   }
 }

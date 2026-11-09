@@ -11,3 +11,388 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// =============================================================
+// Existing app-level enums + User model
+// =============================================================
+
+enum Role {
+  Admin
+  Manager
+  Developer
+  Cashier
+  Driver
+  HR
+  Finance
+  Waiter
+  Technician
+  Legal
+  Stock_Manager
+  Chef
+  Controller
+  Employee
+  Customer
+}
+
+model User {
+  Id        String  @id @default(uuid())
+  firstName String  @map("First Name")
+  lastName  String? @map("Last Name")
+  password  String
+  role      Role    @map("Role")
+
+  // Every Employee has a User; the reverse is optional (Customers etc. have no Employee)
+  employee Employee?
+}
+
+// =============================================================
+// HR module — enums
+// =============================================================
+
+enum Gender {
+  male
+  female
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum MarriageRegime {
+  MONOGAMOUS
+  POLYGAMOUS
+}
+
+enum SkillCategory {
+  TECHNICAL
+  LANGUAGE
+  SOFT_SKILL
+  DOMAIN
+}
+
+enum ProficiencyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum Relationship {
+  MOTHER
+  FATHER
+  SIBLING
+  SPOUSE
+  FRIEND
+  OTHER
+}
+
+enum AssignmentType {
+  PRIMARY
+  ACTING
+  INTERIM
+  SECONDMENT
+}
+
+enum ContractType {
+  CDI
+  CDD
+  STAGE
+  TEMPORAIRE
+  APPRENTISSAGE
+}
+
+enum TerminationReason {
+  END_OF_TERM
+  RESIGNATION
+  DISMISSAL_FAULT
+  DISMISSAL_ECONOMIC
+  MUTUAL_AGREEMENT
+  DEATH
+  RETIREMENT
+}
+
+enum SpouseEndReason {
+  divorce
+  death
+}
+
+// =============================================================
+// Core: Employees
+// =============================================================
+
+model Employee {
+  employeeMatricule    String          @id @map("employee_matricule")
+  userId               String?          @unique @map("user_id")
+  firstName            String          @map("first_name")
+  middleName           String?         @map("middle_name")
+  lastName             String          @map("last_name")
+  gender               Gender
+  dateOfBirth          DateTime        @map("date_of_birth") @db.Date
+  hireDate             DateTime        @map("hire_date") @db.Date
+  departureDate        DateTime?       @map("departure_date") @db.Date
+  country              String
+  niuNumber            String?         @unique @map("niu_number")
+  cnpsNumber           String?         @unique @map("cnps_number")
+  maritalStatus        MaritalStatus   @map("marital_status")
+  marriageRegime       MarriageRegime? @map("marriage_regime")
+  phone                String?
+  email                String?         @unique
+  residenceAddressLine String?         @map("residence_address_line")
+  isArchived           Boolean         @map("is_archived") @default(false)
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  // Required link to the login account
+  user User? @relation(fields: [userId], references: [Id])
+
+  // Back-relations
+  academicCredentials AcademicCredential[]
+  children            EmployeeChild[]
+  spouses             EmployeeSpouse[]
+  parents             EmployeeParent[]
+  emergencyContacts   EmergencyContact[]
+  skills              EmployeeSkill[]
+  positions           EmployeePosition[]
+  contracts           Contract[]
+
+  @@map("Employees")
+}
+
+// =============================================================
+// Organizational structure
+// =============================================================
+
+model Company {
+  id              String   @id @default(uuid())
+  name            String
+  creationDate    DateTime @map("creation_date") @db.Date
+  isParent        Boolean  @map("isParent")
+  parentCompanyId String?  @map("parent_company_id")
+
+  parentCompany  Company?     @relation("CompanyHierarchy", fields: [parentCompanyId], references: [id])
+  childCompanies Company[]    @relation("CompanyHierarchy")
+  departments    Department[]
+
+  @@map("company")
+}
+
+model Department {
+  departmentId       String  @id @default(uuid()) @map("department_id")
+  companyId          String  @map("company_id")
+  name               String
+  parentDepartmentId String? @map("parent_department_id")
+  description        String
+  isActive           Boolean @map("is_active")
+
+  company          Company      @relation(fields: [companyId], references: [id])
+  parentDepartment Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [departmentId])
+  childDepartments Department[] @relation("DepartmentHierarchy")
+  positions        Position[]
+  contracts        Contract[]
+
+  @@map("department")
+}
+
+model Position {
+  id                  String  @id @default(uuid())
+  title               String
+  description         String
+  functionDescription String? @map("function_description")
+  supervisorId        String? @map("supervisor_id")
+  departmentId        String  @map("department_id")
+
+  supervisor        Position?          @relation("PositionHierarchy", fields: [supervisorId], references: [id])
+  subordinates      Position[]         @relation("PositionHierarchy")
+  department        Department         @relation(fields: [departmentId], references: [departmentId])
+  positionSkills    PositionSkill[]
+  employeePositions EmployeePosition[]
+  contracts         Contract[]
+
+  @@map("Position")
+}
+
+// =============================================================
+// Family
+// =============================================================
+
+model EmployeeSpouse {
+  spouseMatricule       String           @id @map("spouse_matricule")
+  employeeMatricule     String           @map("employee_matricule")
+  firstName             String           @map("first_name")
+  lastName              String           @map("last_name")
+  dateOfBirth           DateTime         @map("date_of_birth") @db.Date
+  gender                Gender
+  cniNumber             String?          @unique @map("cni_number")
+  marriageDate          DateTime         @map("marriage_date") @db.Date
+  marriageCertificateNo String?          @map("marriage_certificate_no")
+  isDependent           Boolean          @map("is_dependent")
+  isActive              Boolean          @map("is_active") @default(true)
+  endedOn               DateTime?        @map("ended_on") @db.Date
+  endReason             SpouseEndReason? @map("end_reason")
+
+  employee Employee        @relation(fields: [employeeMatricule], references: [employeeMatricule])
+  children EmployeeChild[]
+
+  @@map("employee_spouses")
+}
+
+model EmployeeChild {
+  childMatricule     String   @id @map("child_matricule")
+  employeeMatricule  String   @map("employee_matricule")
+  spouseMatricule    String?  @map("spouse_matricule")
+  firstName          String   @map("first_name")
+  lastName           String   @map("last_name")
+  dateOfBirth        DateTime @map("date_of_birth") @db.Date
+  isDependent        Boolean  @map("is_dependent")
+  gender             Gender
+  birthCertificateNo String?  @map("birth_certificate_no")
+
+  employee Employee        @relation(fields: [employeeMatricule], references: [employeeMatricule])
+  spouse   EmployeeSpouse? @relation(fields: [spouseMatricule], references: [spouseMatricule])
+
+  @@map("employee_children")
+}
+
+model EmployeeParent {
+  parentMatricule   String    @id @map("parent_matricule")
+  employeeMatricule String    @map("employee_matricule")
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  isAlive           Boolean   @map("is_alive")
+  dateOfBirth       DateTime? @map("date_of_birth") @db.Date
+  gender            Gender
+  isDependent       Boolean   @map("is_dependent")
+
+  employee Employee @relation(fields: [employeeMatricule], references: [employeeMatricule])
+
+  @@map("employee_parents")
+}
+
+model EmergencyContact {
+  contactId         String       @id @default(uuid()) @map("contact_id")
+  employeeMatricule String       @map("employee_matricule")
+  firstName         String       @map("first_name")
+  middleName        String?      @map("middle_name")
+  lastName          String       @map("last_name")
+  relationship      Relationship
+  phone             String
+  alternatePhone    String?      @map("alternate_phone")
+  addressLine       String?      @map("address_line")
+  priorityOrder     Int          @map("priority_order")
+  isActive          Boolean      @map("is_active")
+
+  employee Employee @relation(fields: [employeeMatricule], references: [employeeMatricule])
+
+  @@map("emergency_contacts")
+}
+
+// =============================================================
+// Credentials
+// =============================================================
+
+model AcademicCredential {
+  id                  String    @id @default(uuid())
+  employeeMatricule   String    @map("employee_matricule")
+  degreeName          String    @map("degree_name")
+  institutionAttended String    @map("institution_attended")
+  fieldOfStudy        String    @map("field_of_study")
+  startDate           DateTime  @map("start_date") @db.Date
+  completionDate      DateTime? @map("completion_date") @db.Date
+  gradeEarned         Int       @map("grade_earned")
+  gradeScale          Int       @map("grade_scale")
+  gradePercentage     Int?      @map("grade_percentage")
+  gradeLetter         String?   @map("grade_letter")
+  diplomaNumber       String?   @map("diploma_number")
+  issueDate           DateTime  @map("issue_date") @db.Date
+
+  employee Employee @relation(fields: [employeeMatricule], references: [employeeMatricule])
+
+  @@map("academic_credential")
+}
+
+// =============================================================
+// Skills
+// =============================================================
+
+model Skill {
+  id          String        @id @default(uuid())
+  name        String
+  category    SkillCategory
+  description String?
+
+  positionSkills PositionSkill[]
+  employeeSkills EmployeeSkill[]
+
+  @@map("skills")
+}
+
+model PositionSkill {
+  positionId    String           @map("position_id")
+  skillId       String           @map("skill_id")
+  requiredLevel ProficiencyLevel @map("required_level")
+  isMandatory   Boolean          @map("is_mandatory")
+
+  position Position @relation(fields: [positionId], references: [id])
+  skill    Skill    @relation(fields: [skillId], references: [id])
+
+  @@id([positionId, skillId])
+  @@map("position_skills")
+}
+
+model EmployeeSkill {
+  employeeMatricule String           @map("employee_matricule")
+  skillId           String           @map("skill_id")
+  proficiencyLevel  ProficiencyLevel @map("proficiency_level")
+  acquiredDate      DateTime?        @map("acquired_date") @db.Date
+  lastAssessedDate  DateTime?        @map("last_assessed_date") @db.Date
+
+  employee Employee @relation(fields: [employeeMatricule], references: [employeeMatricule])
+  skill    Skill    @relation(fields: [skillId], references: [id])
+
+  @@id([employeeMatricule, skillId])
+  @@map("employee_skills")
+}
+
+// =============================================================
+// Assignments & Contracts
+// =============================================================
+
+model EmployeePosition {
+  assignmentId      String         @id @default(uuid()) @map("assignment_id")
+  employeeMatricule String         @map("employee_matricule")
+  positionId        String         @map("position_id")
+  assignmentType    AssignmentType @map("assignment_type")
+  startDate         DateTime       @map("start_date") @db.Date
+  endDate           DateTime?      @map("end_date") @db.Date
+  notes             String?
+
+  employee Employee @relation(fields: [employeeMatricule], references: [employeeMatricule])
+  position Position @relation(fields: [positionId], references: [id])
+
+  @@map("employee_positions")
+}
+
+model Contract {
+  contractId          String             @id @default(uuid()) @map("contract_id")
+  employeeMatricule   String             @map("employee_matricule")
+  contractType        ContractType       @map("contract_type")
+  signedDate          DateTime           @map("signed_date") @db.Date
+  startDate           DateTime           @map("start_date") @db.Date
+  endDate             DateTime?          @map("end_date") @db.Date
+  trialEndDate        DateTime?          @map("trial_end_date") @db.Date
+  baseSalaryAtSigning Int                @map("base_salary_at_signing")
+  positionId          String             @map("position_id")
+  serviceId           String             @map("service_id")
+  terminationDate     DateTime?          @map("termination_date") @db.Date
+  terminationReason   TerminationReason? @map("termination_reason")
+  documentReference   String?            @map("document_reference")
+
+  employee Employee   @relation(fields: [employeeMatricule], references: [employeeMatricule])
+  position Position   @relation(fields: [positionId], references: [id])
+  service  Department @relation(fields: [serviceId], references: [departmentId])
+
+  @@map("contracts")
+}

@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import * as z from "zod";
 import { hashPassword } from '../../../../lib/password';
-import { SpouseSchema, updateSpouseSchema } from "./spouse.schema";
+import { endMarriageSchema, SpouseSchema, updateSpouseSchema } from "./spouse.schema";
+
 
 export const addSpouse = async (req: Request , res: Response): Promise<void> => {
     try {
@@ -167,9 +168,65 @@ export const updateSpouse = async (req: Request , res: Response): Promise<void> 
                 
         const data = result.data
 
-        const updateSpouse = await prisma.employee.
+        const updateSpouse = await prisma.employeeSpouse.update({
+            where: {
+                spouseMatricule : spouseMatricule
+            },
+            data: {
+                ...data
+            }
+        })
 
+        res.status(200).json(updateSpouse)
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
+    }
+};
 
+export const endMarriage = async (req: Request , res: Response): Promise<void> => {
+    try {
+          const matricule: string = req.params.matricule as string
+        const spouseMatricule: string = req.params.matricule as string
+
+          if(!matricule && !spouseMatricule) {
+             res.status(400).json({message: "Parameters not found"})
+             return
+          }
+
+        const employee = await prisma.employee.findUnique({
+            where: {
+                employeeMatricule : matricule
+                // Maybe we should only end marriage of employees that are not archived
+            }
+        });
+
+        if(!employee) {
+            res.status(404).json({message: "Employee not found"})
+            return
+        }
+
+        const result = endMarriageSchema.safeParse(req.body)
+     if(!result.success) {
+            const fieldErrors = z.flattenError(result.error)
+            res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
+            return
+     }
+                
+     const data = result.data
+
+     const spouse = await prisma.employeeSpouse.update({
+        where: {
+            spouseMatricule : spouseMatricule,
+        },
+        data: {
+            isActive : false,
+            endedOn : data.endedOn,
+            endReason: data.endReason
+        }
+     });
+      
+     res.status(200).json(spouse)
     } catch (error) {
         res.status(500).json({message:"Internal server error"})
         console.log(error)

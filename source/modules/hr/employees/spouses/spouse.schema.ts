@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { gender } from "../employee.schema";
+import { SpouseEndReason } from "../../../../../generated/prisma/enums";
 
 export const SpouseSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -18,4 +19,9 @@ export type EmployeeFormInput = z.infer<typeof SpouseSchema>;
 
 export const updateSpouseSchema = SpouseSchema.omit({
   cniNumber : true,
-})
+});
+
+export const endMarriageSchema = z.object({
+  endedOn : z.coerce.date(),
+  endReason : z.enum(SpouseEndReason)
+});

@@ -99,7 +99,7 @@ export const archiveEmployee = async (req: Request , res: Response): Promise<voi
          const matricule = req.params.matricule as string
 
          if(!matricule) {
-            res.status(400).json({"This is a params error"})
+            res.status(400).json({message:"This is a params error"})
             return
          }
 

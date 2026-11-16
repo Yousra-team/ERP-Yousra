@@ -1,4 +1,4 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { archiveEmployee, createEmployee, getAnEmployee, getArchivedEmployee, getEmployees, listArchivedEmployees, restoreEmployee, updateEmployee } from "./employees/employee";
 import { addSpouse, endMarriage, getSpouse, listSpouses, updateSpouse } from "./employees/spouses/spouse";
 import { addChild, deleteChild, getAChild, listChildren, updateChild } from "./employees/children/child";
@@ -8,18 +8,19 @@ import { addCredential, deleteCredential, getCredential, getCredentials, updateC
 import { addSkill, deleteSkill, getSkill, getSkills, updateSkill } from "./employees/employee-skills/skills";
 import { addPosition, EndPosition, getPosition, getPositions, updatePosition } from "./employees/employee-positions/position";
 import { createContract, getContract, listContracts, terminateContract, updateContract } from "./employees/employee-contract/contract";
+import { requireRole } from "../../lib/auth.middleware";
 
 // This router is mounted at /api/v1/hr/employees, so "/" here is already the employees collection
 
 const router = Router()
 
 //Employee
-router.post("/" , createEmployee)
-router.post("/:matricule/archive", archiveEmployee )
-router.post("/:matricule/restore", restoreEmployee)
+router.post("/", requireRole(["HR"]), createEmployee)
+router.post("/:matricule/archive", requireRole(["HR"]), archiveEmployee )
+router.post("/:matricule/restore", requireRole(["HR"]), restoreEmployee)
 router.get("/archived" , listArchivedEmployees)
 router.get("/archived/:matricule" , getArchivedEmployee)
-router.patch("/:matricule", updateEmployee)
+router.patch("/:matricule", requireRole(["HR"]), updateEmployee)
 router.get("/" , getEmployees)
 router.get("/:matricule", getAnEmployee)
 
@@ -27,57 +28,58 @@ router.get("/:matricule", getAnEmployee)
 // Spouse
 router.get("/:matricule/spouses", listSpouses)
 router.get("/:matricule/spouses/:spouseMatricule" , getSpouse) // Get Spouse
-router.post("/:matricule/spouses", addSpouse) // Add spouse // check for polygamy
-router.patch("/:matricule/spouses/:spouseMatricule" , updateSpouse) // Update Spouse
-router.post("/:matricule/spouses/:spouseMatricule/end" , endMarriage) // End marriage
+router.post("/:matricule/spouses", requireRole(["HR"]), addSpouse) // Add spouse // check for polygamy
+router.patch("/:matricule/spouses/:spouseMatricule", requireRole(["HR"]), updateSpouse) // Update Spouse
+router.post("/:matricule/spouses/:spouseMatricule/end", requireRole(["HR"]), endMarriage) // End marriage
 
 // Children
 router.get("/:matricule/children", listChildren) // List children
 router.get("/:matricule/children/:childMatricule", getAChild) // Get a child
-router.post("/:matricule/children", addChild) // Add a child
-router.patch("/:matricule/children/:childMatricule", updateChild)// Update a child
-router.delete("/:matricule/children/:childMatricule", deleteChild)// Delete a child
+router.post("/:matricule/children", requireRole(["HR"]), addChild) // Add a child
+router.patch("/:matricule/children/:childMatricule", requireRole(["HR"]), updateChild)// Update a child
+router.delete("/:matricule/children/:childMatricule", requireRole(["HR"]), deleteChild)// Delete a child
 
 // Parents
 router.get("/:matricule/parents", getParents) // List Parents
 router.get("/:matricule/parents/:parentMatricule", getParent) // Get Parent
-router.post("/:matricule/parents", addParent) // Add Parent
-router.patch("/:matricule/parents/:parentMatricule", updateParent) // Update Parents
-router.delete("/:matricule/parents/:parentMatricule", deleteParent) // Delete Parent
+router.post("/:matricule/parents", requireRole(["HR"]), addParent) // Add Parent
+router.patch("/:matricule/parents/:parentMatricule", requireRole(["HR"]), updateParent) // Update Parents
+router.delete("/:matricule/parents/:parentMatricule", requireRole(["HR"]), deleteParent) // Delete Parent
 
 //Contacts
 router.get("/:matricule/emergency-contacts", getContacts) // get Contacts
 router.get("/:matricule/emergency-contacts/:contactId", getContact) // get contact
-router.post("/:matricule/emergency-contacts", addContact) // add contact
-router.patch("/:matricule/emergency-contacts/:contactId", updateContact) // update contact
-router.delete("/:matricule/emergency-contacts/:contactId", deleteContact) // delete contact
+router.post("/:matricule/emergency-contacts", requireRole(["HR"]), addContact) // add contact
+router.patch("/:matricule/emergency-contacts/:contactId", requireRole(["HR"]), updateContact) // update contact
+router.delete("/:matricule/emergency-contacts/:contactId", requireRole(["HR"]), deleteContact) // delete contact
 
 // Credentials
 router.get("/:matricule/academic-credentials", getCredentials) // Get Credentials
 router.get("/:matricule/academic-credentials/:id", getCredential) // Get Credential
-router.post("/:matricule/academic-credentials", addCredential) // Add Credential
-router.patch("/:matricule/academic-credentials/:id", updateCredential) // Update Credential
-router.delete("/:matricule/academic-credentials/:id", deleteCredential) //delete credential
+router.post("/:matricule/academic-credentials", requireRole(["HR"]), addCredential) // Add Credential
+router.patch("/:matricule/academic-credentials/:id", requireRole(["HR"]), updateCredential) // Update Credential
+router.delete("/:matricule/academic-credentials/:id", requireRole(["HR"]), deleteCredential) //delete credential
 
 //employee-skills
 router.get("/:matricule/skills", getSkills) // get skills
 router.get("/:matricule/skills/:skillId", getSkill) // Get skill
-router.post("/:matricule/skills", addSkill) // Add a Skill
-router.patch("/:matricule/skills/:skillId", updateSkill) //update skill
-router.delete("/:matricule/skills/:skillId", deleteSkill) // delete skill
+router.post("/:matricule/skills", requireRole(["HR"]), addSkill) // Add a Skill
+router.patch("/:matricule/skills/:skillId", requireRole(["HR"]), updateSkill) //update skill
+router.delete("/:matricule/skills/:skillId", requireRole(["HR"]), deleteSkill) // delete skill
 
 //employee-positions
 router.get("/:matricule/positions", getPositions) // get assignments
 router.get("/:matricule/positions/:assignmentId", getPosition) // Get an assignment
-router.post("/:matricule/positions", addPosition) // add assignment
-router.patch("/:matricule/positions/:assignmentId", updatePosition) //update assignment
-router.post("/:matricule/positions/:assignmentId/end", EndPosition) // End assignment
+router.post("/:matricule/positions", requireRole(["HR"]), addPosition) // add assignment
+router.patch("/:matricule/positions/:assignmentId", requireRole(["HR"]), updatePosition) //update assignment
+router.post("/:matricule/positions/:assignmentId/end", requireRole(["HR"]), EndPosition) // End assignment
 
 //employee-contracts
 router.get("/:matricule/contracts", listContracts) // get contracts
 router.get("/:matricule/contracts/:contractId", getContract) // Get a contract
-router.post("/:matricule/contracts", createContract) // add contract
-router.patch("/:matricule/contracts/:contractId", updateContract) //update contract
-router.post("/:matricule/contracts/:contractId/terminate", terminateContract) // Terminate contract
+router.post("/:matricule/contracts", requireRole(["HR"]), createContract) // add contract
+router.patch("/:matricule/contracts/:contractId", requireRole(["HR"]), updateContract) //update contract
+router.post("/:matricule/contracts/:contractId/terminate", requireRole(["HR"]), terminateContract) // Terminate contract
 
 export default router
+

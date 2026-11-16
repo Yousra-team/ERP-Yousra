@@ -1,7 +1,10 @@
 import { Router } from "express";
-import { changePassword, UserLogin } from "./auth";
+import { changePassword, loginEmployee } from "./auth";
+import { requireAuth } from "../../lib/auth.middleware";
 
 const router = Router()
 
-router.post("/login", UserLogin)
-router.post("/change-password", changePassword)
+router.post("/login", loginEmployee)
+router.post("/change-password", requireAuth, changePassword)
+
+export default router

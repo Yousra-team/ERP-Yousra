@@ -105,3 +105,25 @@ export const updateUser = async (req: Request , res: Response): Promise<void> =>
         console.log(error)
     }
 };
+
+export const deleteUser = async (req: Request , res: Response): Promise<void> => {
+    try {
+        const id = req.params.userId as string
+
+        if(!id) {
+            res.status(400).json({message:"No userId found"})
+            return
+        }
+
+        const deletedUser = await prisma.user.delete({
+            where: {
+                Id: id
+            }
+        })
+
+        res.status(200).json(deletedUser)
+    } catch (error) {
+        res.status(500).json({message:"Internal Server Error"})
+        console.log(error)
+    }
+};

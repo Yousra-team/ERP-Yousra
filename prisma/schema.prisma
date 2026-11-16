@@ -36,6 +36,7 @@ enum Role {
 
 model User {
   Id        String  @id @default(uuid())
+  username  String  @unique
   firstName String  @map("First Name")
   lastName  String? @map("Last Name")
   password  String
@@ -125,7 +126,7 @@ enum SpouseEndReason {
 
 model Employee {
   employeeMatricule    String          @id @map("employee_matricule")
-  userId               String?          @unique @map("user_id")
+  userId               String?         @unique @map("user_id")
   firstName            String          @map("first_name")
   middleName           String?         @map("middle_name")
   lastName             String          @map("last_name")
@@ -141,7 +142,7 @@ model Employee {
   phone                String?
   email                String?         @unique
   residenceAddressLine String?         @map("residence_address_line")
-  isArchived           Boolean         @map("is_archived") @default(false)
+  isArchived           Boolean         @default(false) @map("is_archived")
   createdAt            DateTime        @default(now()) @map("created_at")
   updatedAt            DateTime        @updatedAt @map("updated_at")
 
@@ -229,7 +230,7 @@ model EmployeeSpouse {
   marriageDate          DateTime         @map("marriage_date") @db.Date
   marriageCertificateNo String?          @map("marriage_certificate_no")
   isDependent           Boolean          @map("is_dependent")
-  isActive              Boolean          @map("is_active") @default(true)
+  isActive              Boolean          @default(true) @map("is_active")
   endedOn               DateTime?        @map("ended_on") @db.Date
   endReason             SpouseEndReason? @map("end_reason")
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { roles } from "../users/userSchema";
+import { roles } from "../../admin/users/userSchema";
 import { MaritalStatus, MarriageRegime, TerminationReason } from "../../../../generated/prisma/enums";
 
 export const maritalStatus = ["SINGLE",

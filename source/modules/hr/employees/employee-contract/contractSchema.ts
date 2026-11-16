@@ -10,7 +10,7 @@ export const contractSchema = z.object({
   endDate: z.coerce.date().nullable().optional(),
   trialEndDate: z.coerce.date().nullable().optional(),
   baseSalaryAtSigning: z.number().int().nonnegative(),
-  positionId: z.string().uuid("Invalid position ID"),
+  positionId: z.string(),
   serviceId: z.string().min(1, "Service ID is required"),
   terminationDate: z.coerce.date().nullable().optional(),
   terminationReason: z.enum(TerminationReason).nullable().optional(),

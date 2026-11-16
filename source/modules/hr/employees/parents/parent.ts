@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import * as z from "zod";
-import { employeeParentSchema } from "./parentSchema";
+import { employeeParentSchema, updateParentSchema } from "./parentSchema";
 
 export const addParent = async (req: Request , res: Response): Promise<void> => {
     try {
@@ -23,12 +23,11 @@ export const addParent = async (req: Request , res: Response): Promise<void> => 
      const newParent = await prisma.employeeParent.create({
         data : {
             ...data,
-            employeeMatricule : matricule,
-            parentMatricule : "GENERATOR"
+            employeeMatricule : matricule
         }
      });
-   
-     res.status(200).json(newParent)
+
+     res.status(201).json(newParent)
 
     } catch (error) {
       res.status(500).json({message: "Internal Server Error when adding Parent" , error: error})
@@ -95,7 +94,7 @@ export const updateParent = async (req: Request , res: Response): Promise<void> 
             return
          }
          
-     const result = employeeParentSchema.safeParse(req.body)
+     const result = updateParentSchema.safeParse(req.body)
         if(!result.success) {
           const fieldErrors = z.flattenError(result.error)
           res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})

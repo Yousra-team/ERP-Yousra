@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { archiveEmployeeSchema, createEmployeeSchema, updateEmployeeSchema } from "./employee.schema";
 import {prisma} from "../../../lib/prisma";
 import * as z from "zod";
@@ -18,13 +18,26 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
 
         const hashedPassword: string = await hashPassword(data.user.password)
 
+        // One transaction: if the user creation fails the employee is rolled back too
         const createEmployeeAndUser = await prisma.$transaction(async(tx) => {
-              const employee = await tx.employee.create({
+        // The user comes first so the employee can store its id (userId link)
+        const user = await tx.user.create({
+            data: {
+                username: data.employeeMatricule, // Employees log in with their matricule
+                firstName: data.firstName,
+                lastName: data.lastName,
+                role: data.user.role,
+                password: hashedPassword
+            },
+        });
+
+        const employee = await tx.employee.create({
             data: {
                 firstName : data.firstName,
                 lastName: data.lastName,
                 middleName: data.middleName,
-                employeeMatricule: "SOONTOBEADDED",
+                employeeMatricule: data.employeeMatricule,
+                userId: user.Id,
                 hireDate: data.hireDate,
                 dateOfBirth: data.dateOfBirth,
                 gender: data.gender,
@@ -37,18 +50,10 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
                 maritalStatus: data.maritalStatus
             }
         });
-       
-        const user = await tx.user.create({
-            data: {
-                firstName: data.firstName,
-                lastName: data.lastName,
-                role: data.user.role,
-                password: hashedPassword
-            },
-        });
 
+        return employee
     })
-   res.status(200).json({message: "Employee Record has been created"})
+   res.status(201).json(createEmployeeAndUser)
     } catch (error) {
         res.status(500).json({message:"Internal server or database error"})
         console.log(error)
@@ -85,6 +90,11 @@ export const getAnEmployee = async (req: Request , res: Response): Promise<void>
             },
           });
 
+          if(!employee) {
+            res.status(404).json({message:"Resource not found"})
+            return
+          }
+
           res.status(200).json(employee)
     } catch (error) {
         res.status(500).json({message:"Internal server error"})
@@ -109,13 +119,16 @@ export const archiveEmployee = async (req: Request , res: Response): Promise<voi
             res.status(400).json({message: "Bad data" , error: fieldErrors.fieldErrors})
             return
          }
-         
+
+         const data = result.data
+
          const archivedEmployee = await prisma.employee.update({
             where: {
               employeeMatricule : matricule,
             },
             data: {
-                isArchived : true
+                isArchived : true,
+                departureDate : data.effectiveDate
             }
          })
 
@@ -136,7 +149,8 @@ export const restoreEmployee = async (req: Request , res: Response): Promise<voi
                 isArchived : true
             },
             data: {
-                isArchived : false
+                isArchived : false,
+                departureDate : null
             }
         });
 

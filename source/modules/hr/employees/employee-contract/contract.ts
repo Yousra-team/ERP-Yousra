@@ -1,151 +1,161 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import * as z from "zod";
-import { employeePositionSchema, endAssignment, updatePositionSchema } from "./positionSchema";
+import { createContractSchema, terminateContractSchema, updateContractSchema } from "./contractSchema";
 
 
-export const addPosition = async (req: Request , res: Response): Promise<void> => {
+export const createContract = async (req: Request , res: Response): Promise<void> => {
     try {
-   const matricule : string = req.params.matricule as string
- 
+        const matricule : string = req.params.matricule as string
+
         if(!matricule){
-             res.status(400).json({message: "Invalid Parameters"})
-             return
-          }
-       const result = employeePositionSchema.safeParse(req.body)
-         if(!result.success) {
-           const fieldErrors = z.flattenError(result.error)
-           res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
-           return
+            res.status(400).json({message: "Invalid Parameters"})
+            return
         }
-               
-      const data = result.data
 
-      const newSkill = await prisma.employeePosition.create({
-        data: {
-            ...data,
-            employeeMatricule : matricule
+        const result = createContractSchema.safeParse(req.body)
+        if(!result.success) {
+            const fieldErrors = z.flattenError(result.error)
+            res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
+            return
         }
-      });
 
-      res.status(200).json(newSkill)
-    } catch (error) {
-      res.status(500).json({message: "Internal Server Error when adding employee skill" , error: error})
-      console.log(error)
-    }
-};
+        const data = result.data
 
-
-export const updatePosition = async (req: Request , res: Response): Promise<void> => {
-    try {
-   const matricule : string = req.params.matricule as string
-   const assignmentId : string = req.params.assignmentId as string
- 
-        if(!matricule && !assignmentId){
-             res.status(400).json({message: "Invalid Parameters"})
-             return
-          }
-       const result = updatePositionSchema.safeParse(req.body)
-         if(!result.success) {
-           const fieldErrors = z.flattenError(result.error)
-           res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
-           return
-        }
-               
-      const data = result.data
-
-      const newPosition = await prisma.employeePosition.update({
-        where: {
-           assignmentId: assignmentId
-        },
-        data: {
-            ...data,
-        }
-      });
-
-      res.status(200).json(newPosition)
-    } catch (error) {
-      res.status(500).json({message: "Internal Server Error when Updating Skill" , error: error})
-      console.log(error)
-    }
-};
-
-export const getPosition = async (req: Request , res: Response): Promise<void> => {
-    try {
-         const matricule : string = req.params.matricule as string
-         const assignmentId : string = req.params.contactId as string
- 
-        if(!matricule && !assignmentId){
-             res.status(400).json({message: "Invalid Parameters"})
-             return
-          }
-
-        const position = await prisma.employeePosition.findUnique({
-            where: {
-             assignmentId : assignmentId,
-             employeeMatricule: matricule
+        const newContract = await prisma.contract.create({
+            data: {
+                ...data,
+                employeeMatricule : matricule
             }
         });
 
-        res.status(200).json(position)
+        res.status(201).json(newContract)
     } catch (error) {
-      res.status(500).json({message: "Internal Server Error when fetching Skill" , error: error})
-      console.log(error) 
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
     }
 };
 
-export const getPositions = async (req: Request , res: Response): Promise<void> => {
+export const listContracts = async (req: Request , res: Response): Promise<void> => {
     try {
-         const matricule : string = req.params.matricule as string
-        
-        if(!matricule){
-             res.status(400).json({message: "Invalid Parameters"})
-             return
-          }
+        const matricule : string = req.params.matricule as string
 
-        const positions = await prisma.employeePosition.findMany({
+        if(!matricule){
+            res.status(400).json({message: "Invalid Parameters"})
+            return
+        }
+
+        const contracts = await prisma.contract.findMany({
             where: {
                 employeeMatricule : matricule
             }
         });
 
-        res.status(200).json(positions)
+        res.status(200).json(contracts)
     } catch (error) {
-      res.status(500).json({message: "Internal Server Error when fetching positions" , error: error})
-      console.log(error) 
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
     }
 };
 
-export const EndPosition = async (req: Request , res: Response): Promise<void> => {
+export const getContract = async (req: Request , res: Response): Promise<void> => {
     try {
-         const matricule : string = req.params.matricule as string
-         const assignmentId : string = req.params.contactId as string
- 
-        if(!matricule && !assignmentId){
-             res.status(400).json({message: "Invalid Parameters"})
-             return
-          }
+        const matricule : string = req.params.matricule as string
+        const contractId : string = req.params.contractId as string
 
-        const result = endAssignment.safeParse(req.body)
-
-        if(!result.success) {
-           const fieldErrors = z.flattenError(result.error)
-           res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
-           return
+        if(!matricule && !contractId){
+            res.status(400).json({message: "Invalid Parameters"})
+            return
         }
 
-        const position = await prisma.employeePosition.update({
+        const contract = await prisma.contract.findUnique({
             where: {
-               assignmentId : assignmentId
-            },
-            data: {
-
+                contractId : contractId,
+                employeeMatricule : matricule
             }
         });
 
-        res.status(200).json(position)
+        if(!contract) {
+            res.status(404).json({message: "Contract not found"})
+            return
+        }
+
+        res.status(200).json(contract)
     } catch (error) {
-      res.status(500).json({message: "Internal Server Error when removing Skill" , error: error})
-      console.log(error) 
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
+    }
+};
+
+export const updateContract = async (req: Request , res: Response): Promise<void> => {
+    try {
+        const matricule : string = req.params.matricule as string
+        const contractId : string = req.params.contractId as string
+
+        if(!matricule && !contractId){
+            res.status(400).json({message: "Invalid Parameters"})
+            return
+        }
+
+        const result = updateContractSchema.safeParse(req.body)
+        if(!result.success) {
+            const fieldErrors = z.flattenError(result.error)
+            res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
+            return
+        }
+
+        const data = result.data
+
+        const contract = await prisma.contract.update({
+            where: {
+                contractId : contractId,
+                employeeMatricule : matricule
+            },
+            data: {
+                ...data
+            }
+        });
+
+        res.status(200).json(contract)
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
+    }
+};
+
+export const terminateContract = async (req: Request , res: Response): Promise<void> => {
+    try {
+        const matricule : string = req.params.matricule as string
+        const contractId : string = req.params.contractId as string
+
+        if(!matricule && !contractId){
+            res.status(400).json({message: "Invalid Parameters"})
+            return
+        }
+
+        const result = terminateContractSchema.safeParse(req.body)
+        if(!result.success) {
+            const fieldErrors = z.flattenError(result.error)
+            res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
+            return
+        }
+
+        const data = result.data
+
+        const contract = await prisma.contract.update({
+            where: {
+                contractId : contractId,
+                employeeMatricule : matricule
+            },
+            data: {
+                terminationDate : data.terminationDate,
+                terminationReason : data.terminationReason
+            }
+        });
+
+        res.status(200).json(contract)
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
     }
 };

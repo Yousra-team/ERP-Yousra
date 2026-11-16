@@ -20,6 +20,7 @@ export const roles = [
 
 
 export const userSchema = z.object({
+    username : z.string().min(1), // Unique login name (employees use their matricule)
     firstName : z.string(),
     lastName: z.string(),
     role: z.enum(roles),

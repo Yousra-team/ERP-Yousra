@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import * as z from "zod";
 import { employeeSkillSchema, updateSkillSchema } from "./skillSchema";
@@ -38,7 +38,7 @@ export const addSkill = async (req: Request , res: Response): Promise<void> => {
 export const updateSkill = async (req: Request , res: Response): Promise<void> => {
     try {
    const matricule : string = req.params.matricule as string
-   const skillId : string = req.params.contactId as string
+   const skillId : string = req.params.skillId as string
  
         if(!matricule && !skillId){
              res.status(400).json({message: "Invalid Parameters"})
@@ -75,7 +75,7 @@ export const updateSkill = async (req: Request , res: Response): Promise<void> =
 export const getSkill = async (req: Request , res: Response): Promise<void> => {
     try {
          const matricule : string = req.params.matricule as string
-         const skillId : string = req.params.contactId as string
+         const skillId : string = req.params.skillId as string
  
         if(!matricule && !skillId){
              res.status(400).json({message: "Invalid Parameters"})
@@ -123,7 +123,7 @@ export const getSkills = async (req: Request , res: Response): Promise<void> => 
 export const deleteSkill = async (req: Request , res: Response): Promise<void> => {
     try {
          const matricule : string = req.params.matricule as string
-         const skillId : string = req.params.contactId as string
+         const skillId : string = req.params.skillId as string
  
         if(!matricule && !skillId){
              res.status(400).json({message: "Invalid Parameters"})

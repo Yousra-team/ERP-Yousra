@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import * as z from "zod";
 import { hashPassword } from '../../../../lib/password';
@@ -29,8 +29,10 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
         return
     }
 
-    if(employee.marriageRegime == "MONOGAMOUS"  && employee.spouses) {
-         res.status(409).json({message: "The Employee is monogamous can not add a spouse"})
+    // spouses is an array: only active marriages count against the monogamy rule
+    const activeSpouseCount = employee.spouses.filter(s => s.isActive).length
+    if(employee.marriageRegime == "MONOGAMOUS" && activeSpouseCount >= 1) {
+         res.status(409).json({message: "Employee is monogamous and already has a spouse"})
          return
     }
 
@@ -41,17 +43,17 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
             res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
             return
      }
-                
+
      const data = result.data
 
-     const createMarriage = prisma.$transaction(async (tx) => {
+     const createMarriage = await prisma.$transaction(async (tx) => {
          const newSpouse = await tx.employeeSpouse.create({
             data: {
                 firstName : data.firstName,
                 lastName: data.lastName,
                 cniNumber: data.cniNumber,
                 dateOfBirth: data.dateOfBirth,
-                spouseMatricule: "DEFAULT", // change later,
+                spouseMatricule: data.spouseMatricule,
                 isDependent: data.isDependent,
                 marriageDate: data.marriageDate,
                 marriageCertificateNo: data.marriageCertificateNo,
@@ -69,10 +71,10 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
             }
          })
 
-
+         return newSpouse
      });
 
-    res.status(200).json(createMarriage)
+    res.status(201).json(createMarriage)
 
     } catch (error) {
         res.status(500).json({message:"Internal server error"})
@@ -84,7 +86,7 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
 export const getSpouse = async (req: Request , res: Response): Promise<void> => {
     try {
           const matricule: string = req.params.matricule as string
-          const spouseMatricule: string = req.params.matricule as string
+          const spouseMatricule: string = req.params.spouseMatricule as string
 
           if(!matricule && !spouseMatricule) {
              res.status(400).json({message: "Parameters not found"})
@@ -123,14 +125,13 @@ export const listSpouses = async (req: Request , res: Response): Promise<void> =
             return
         }
 
-        const spouses = await prisma.employee.findUnique({
+        const spouses = await prisma.employeeSpouse.findMany({
             where: {
-                isArchived : false,
                 employeeMatricule : matricule
-            },
-            include: { spouses : true}
+            }
         })
 
+        res.status(200).json(spouses)
     } catch (error) {
        res.status(500).json({message:"Internal server error"})
        console.log(error) 
@@ -141,7 +142,7 @@ export const updateSpouse = async (req: Request , res: Response): Promise<void> 
     try {
          
         const matricule: string = req.params.matricule as string
-        const spouseMatricule: string = req.params.matricule as string
+        const spouseMatricule: string = req.params.spouseMatricule as string
 
           if(!matricule && !spouseMatricule) {
              res.status(400).json({message: "Parameters not found"})
@@ -170,7 +171,8 @@ export const updateSpouse = async (req: Request , res: Response): Promise<void> 
 
         const updateSpouse = await prisma.employeeSpouse.update({
             where: {
-                spouseMatricule : spouseMatricule
+                spouseMatricule : spouseMatricule,
+                employeeMatricule : matricule
             },
             data: {
                 ...data
@@ -187,7 +189,7 @@ export const updateSpouse = async (req: Request , res: Response): Promise<void> 
 export const endMarriage = async (req: Request , res: Response): Promise<void> => {
     try {
           const matricule: string = req.params.matricule as string
-        const spouseMatricule: string = req.params.matricule as string
+        const spouseMatricule: string = req.params.spouseMatricule as string
 
           if(!matricule && !spouseMatricule) {
              res.status(400).json({message: "Parameters not found"})
@@ -218,6 +220,7 @@ export const endMarriage = async (req: Request , res: Response): Promise<void> =
      const spouse = await prisma.employeeSpouse.update({
         where: {
             spouseMatricule : spouseMatricule,
+            employeeMatricule : matricule
         },
         data: {
             isActive : false,

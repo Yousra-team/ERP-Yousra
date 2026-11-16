@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import * as z from "zod";
 import { emergencyContactSchema, updateContactSchema } from "./contactSchema";
@@ -76,19 +76,11 @@ export const getContact = async (req: Request , res: Response): Promise<void> =>
     try {
    const matricule : string = req.params.matricule as string
    const contactId : string = req.params.contactId as string
- 
+
         if(!matricule && !contactId){
              res.status(400).json({message: "Invalid Parameters"})
              return
           }
-       const result = emergencyContactSchema.safeParse(req.body)
-         if(!result.success) {
-           const fieldErrors = z.flattenError(result.error)
-           res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
-           return
-        }
-               
-      const data = result.data
 
       const Contact = await prisma.emergencyContact.findUnique({
         where:{
@@ -97,9 +89,14 @@ export const getContact = async (req: Request , res: Response): Promise<void> =>
         },
       });
 
+      if(!Contact) {
+        res.status(404).json({message: "Contact not found"})
+        return
+      }
+
       res.status(200).json(Contact)
     } catch (error) {
-      res.status(500).json({message: "Internal Server Error when adding Parent" , error: error})
+      res.status(500).json({message: "Internal Server Error when getting Contact" , error: error})
       console.log(error)
     }
 };
@@ -108,31 +105,21 @@ export const getContact = async (req: Request , res: Response): Promise<void> =>
 export const getContacts = async (req: Request , res: Response): Promise<void> => {
     try {
    const matricule : string = req.params.matricule as string
-   const contactId : string = req.params.contactId as string
- 
-        if(!matricule && !contactId){
+
+        if(!matricule){
              res.status(400).json({message: "Invalid Parameters"})
              return
           }
-       const result = emergencyContactSchema.safeParse(req.body)
-         if(!result.success) {
-           const fieldErrors = z.flattenError(result.error)
-           res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
-           return
-        }
-               
-      const data = result.data
 
-      const Contact = await prisma.emergencyContact.findUnique({
+      const contacts = await prisma.emergencyContact.findMany({
         where:{
-            employeeMatricule : matricule,
-            contactId : contactId
+            employeeMatricule : matricule
         },
       });
 
-      res.status(200).json(Contact)
+      res.status(200).json(contacts)
     } catch (error) {
-      res.status(500).json({message: "Internal Server Error when adding Parent" , error: error})
+      res.status(500).json({message: "Internal Server Error when getting Contacts" , error: error})
       console.log(error)
     }
 };

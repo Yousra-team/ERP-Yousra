@@ -1,11 +1,11 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
 import { childSchema, updateChildSchema } from "./childSchema";
 import * as z from "zod";
 
 export const listChildren = async (req: Request , res: Response): Promise<void> => {
     try {
-        const matricule = req.params.id as string
+        const matricule = req.params.matricule as string
 
         if(!matricule) {
           res.status(400).json({message:"Invalid Parameters"})
@@ -70,9 +70,11 @@ export const addChild = async (req: Request , res: Response): Promise<void> => {
         const data = result.data
         const child = await prisma.employeeChild.create({
             data: {
-                ...data
+                ...data,
+                employeeMatricule : matricule
             }
         })
+        res.status(201).json(child)
     } catch (error) {
         res.status(500).json({message:"Internal server error"})
         console.log(error)
@@ -115,7 +117,7 @@ export const updateChild = async (req: Request , res: Response): Promise<void> =
 };
 
 
-export const DeleteChildren = async (req: Request , res: Response): Promise<void> => {
+export const deleteChild = async (req: Request , res: Response): Promise<void> => {
     try {
         const matricule: string = req.params.matricule as string
         const childMatricule: string = req.params.childMatricule as string

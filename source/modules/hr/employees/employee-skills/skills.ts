@@ -91,6 +91,11 @@ export const getSkill = async (req: Request , res: Response): Promise<void> => {
             }
         });
 
+        if(!skill) {
+            res.status(404).json({message: "Skill not found"})
+            return
+        }
+
         res.status(200).json(skill)
     } catch (error) {
       res.status(500).json({message: "Internal Server Error when fetching Skill" , error: error})

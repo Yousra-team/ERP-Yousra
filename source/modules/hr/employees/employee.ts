@@ -47,7 +47,8 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
                 email: data.email,
                 phone: data.phone,
                 residenceAddressLine: data.residenceAddressLine,
-                maritalStatus: data.maritalStatus
+                maritalStatus: data.maritalStatus,
+                marriageRegime: data.MarriageRegime
             }
         });
 

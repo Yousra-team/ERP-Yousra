@@ -7,7 +7,9 @@
     "@types/bun": "latest",
     "@types/express": "^5.0.6",
     "@types/pg": "^8.23.1",
-    "prisma": "^7.10.0"
+    "@types/supertest": "^7.2.1",
+    "prisma": "^7.10.0",
+    "supertest": "^7.3.2"
   },
   "peerDependencies": {
     "typescript": "^7"
@@ -27,6 +29,7 @@
     "start": "doppler run -- bun run source/server.ts",
     "migrate": "doppler run -- bunx prisma migrate dev",
     "generate": "doppler run -- bunx prisma generate",
+    "test": "doppler run --config test -- bun test",
     "studio": "doppler run -- bunx prisma studio"
   }
 }

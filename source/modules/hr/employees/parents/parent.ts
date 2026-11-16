@@ -76,6 +76,11 @@ export const getParent = async (req: Request , res: Response): Promise<void> => 
             }
         });
 
+          if(!parent) {
+            res.status(404).json({message: "Parent not found"})
+            return
+          }
+
           res.status(200).json(parent)
 
     } catch (error) {

@@ -87,6 +87,11 @@ export const getPosition = async (req: Request , res: Response): Promise<void> =
             }
         });
 
+        if(!position) {
+            res.status(404).json({message: "Assignment not found"})
+            return
+        }
+
         res.status(200).json(position)
     } catch (error) {
       res.status(500).json({message: "Internal Server Error when fetching Skill" , error: error})

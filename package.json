@@ -29,7 +29,7 @@
     "start": "doppler run -- bun run source/server.ts",
     "migrate": "doppler run -- bunx prisma migrate dev",
     "generate": "doppler run -- bunx prisma generate",
-    "test": "doppler run --config test -- bun test",
+    "test": "doppler run --config dev -- bun test",
     "studio": "doppler run -- bunx prisma studio"
   }
 }

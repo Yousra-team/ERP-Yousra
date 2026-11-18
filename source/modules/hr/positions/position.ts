@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import {prisma} from "../../lib/prisma";
+import {prisma} from "../../../lib/prisma";
 import * as z from "zod";
 import { positionSchema, positionSkillSchema, updatePositionSchema, updatePositionSkillSchema } from "./positionSchema";
 

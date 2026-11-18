@@ -1,6 +1,24 @@
 # Claude Code brief — finish the HR module (ERP-Yousra)
 
-You are working in the `ERP-Yousra` repo. The HR module is partially coded; your job is to **finish it** and **write unit tests for it**. Follow the author's existing style — mirror it closely. Do not refactor files that already work, do not introduce new patterns, do not add libraries. Keep code simple and easy to read.
+You are working in the `ERP-Yousra` repo. The HR module is partially coded; your job is to **finish it** and **write unit tests for it**. Follow the author's existing style — **mirror it exactly**. This is the single most important rule in this brief. If you have to choose between "idiomatic" and "same as the author's existing files", pick the author's style every time.
+
+Keep code simple. Keep it readable. Add short, honest comments. Do not refactor files that already work. Do not introduce new patterns. Do not add libraries. Do not create abstractions.
+
+---
+
+## 0. The non-negotiables (read first, read twice)
+
+These override everything else in this document. If a later section contradicts one of these, ignore the later section.
+
+1. **Everything HR-owned lives in `source/modules/hr/`.** That includes: employees (and all their sub-resources), **top-level positions, the skill catalog, and top-level contracts**. Do NOT split these into siblings of `hr/` (no `source/modules/positions/`, no `source/modules/skills/`, no `source/modules/contracts/` — they belong inside `hr/`). **Companies and departments are their own single module** — `source/modules/company/` — mounted at `/api/v1/company`. Companies and departments are shared org structure (finance, stock, and inventory will mount the same module later), so they're NOT under `hr/`. One module, one mount point, same aggregator pattern as HR.
+
+2. **Mirror the author's style exactly.** The style is defined by the existing files — especially `source/modules/hr/employees/employee.ts`, `source/modules/hr/employees/parents/parent.ts`, `source/modules/hr/employees/contacts/contact.ts`, and `source/modules/hr/employees/credentials/credential.ts`. If your instinct says "I would write this differently", suppress that instinct. Read §3 before writing a single line.
+
+3. **Comments are not optional.** The author comments as he codes — short, casual, in his own voice. §3.6 is the full rule. Follow it everywhere.
+
+4. **Simple over clever, always.** No array `.reduce` tricks. No Sets. No regex. No one-liners that need a moment to parse. If there's a straight loop that reads like English, write the loop.
+
+5. **If a step takes you off the path** — a Prisma migration surprises you, an enum is missing, something won't compile cleanly — stop, write a short comment explaining what you saw, and ask. Do not improvise fixes to the schema or to libraries.
 
 ---
 
@@ -22,58 +40,92 @@ Scripts in `package.json`:
 
 ---
 
-## 2. Folder layout (already in place — keep it)
+## 2. Folder layout — target state after your work
 
 ```
 source/
-  app.ts              ← stub: `app.use("/", ...)`. Needs real routing wired.
-  server.ts           ← starts Express on PORT (default 5000)
+  app.ts                         ← wires everything (currently a stub)
+  server.ts                      ← fine as-is
   lib/
     prisma.ts
-    password.ts       ← hashPassword, verifyPassword
-    jwt.ts            ← signAccessToken, signRefreshToken, verifyToken
+    password.ts
+    jwt.ts
+    auth.middleware.ts           ← NEW (you will create, §7)
   modules/
     auth/
-      auth.ts         ← partial: UserLogin works, changePassword empty
-      authRouter.ts   ← missing default export + missing /logout, /refresh
-      authSchema.ts   ← LoginSchema, updatePasswordSchema, linkUserToEmployeeSchema
+      auth.ts                    ← finish (login, change-password)
+      authRouter.ts              ← needs default export + routes
+      authSchema.ts              ← fine as-is
     admin/
       users/
-        user.ts       ← createUser, getUsers, getUserById, updateUser
-        userRouter.ts ← missing default export
-        userSchema.ts ← userSchema, updateUserSchema, roles[]
+        user.ts                  ← add deleteUser
+        userRouter.ts            ← needs default export + delete route
+        userSchema.ts
+    company/                     ← NEW (shared org, not HR)
+      companyRouter.ts           ← aggregator: mounts /companies and /departments
+      companies/
+        company.ts
+        companyRouter.ts         ← mounted at /companies by the aggregator
+        companySchema.ts
+      departments/
+        department.ts
+        departmentRouter.ts      ← mounted at /departments by the aggregator
+        departmentSchema.ts
     hr/
-      hrRouter.ts     ← has buggy paths (see §5). Needs default export.
+      hrRouter.ts                ← aggregates all HR sub-routers (§4.2)
       employees/
+        employeeRouter.ts        ← renamed from the current buggy hrRouter.ts
         employee.ts
         employee.schema.ts
-        spouses/        spouse.ts, spouse.schema.ts
-        children/       child.ts, childSchema.ts
-        parents/        parent.ts, parentSchema.ts
-        contacts/       contact.ts, contactSchema.ts
-        credentials/    credential.ts, credentialSchema.ts
-        employee-skills/      skills.ts, skillSchema.ts
-        employee-positions/   position.ts, positionSchema.ts
-        employee-contract/    (schema only, no controller yet)
-prisma/
-  schema.prisma       ← Employee, User, EmployeeSpouse, ..., Company, Department, Position, Skill, Contract
-  migrations/         ← initial migration exists
+        spouses/ ... employee-contract/ ← existing sub-folders stay
+      positions/                 ← NEW (top-level Position catalog)
+        position.ts
+        positionRouter.ts
+        positionSchema.ts
+        position-skills/         ← nested: which skills a position requires
+          positionSkill.ts
+          positionSkillSchema.ts
+      skills/                    ← NEW (top-level Skill catalog)
+        skill.ts
+        skillRouter.ts
+        skillSchema.ts
+      contracts/                 ← NEW (top-level contract reads only)
+        contract.ts
+        contractRouter.ts
+        contractSchema.ts
+  __tests__/                     ← NEW (§8)
+    helpers.ts
+    employee.test.ts
+    spouse.test.ts
+    ... (one per controller)
 ```
 
-Keep this layout. Do **not** restructure. When you add new files, put them where their siblings live.
+Three modules are built this round: **`auth`**, **`company`**, **`hr`**. Each has its own mount point and, where it has sub-resources, its own aggregator router — the same pattern throughout. Companies and departments stay out of `hr/` because they're shared org structure that other modules (finance, inventory, stock) will mount later.
 
 ---
 
-## 3. Coding conventions — MIRROR exactly
+## 3. Coding conventions — MIRROR these (section with the most weight)
 
-Read `source/modules/hr/employees/employee.ts` and `source/modules/hr/employees/parents/parent.ts` to see the exact style. New code must match.
+Before you write anything new, open these files and read them fully:
 
-### 3.1 Controller shape (every handler)
+- `source/modules/hr/employees/employee.ts`
+- `source/modules/hr/employees/parents/parent.ts`
+- `source/modules/hr/employees/contacts/contact.ts`
+- `source/modules/hr/employees/credentials/credential.ts`
+- `source/modules/admin/users/user.ts`
+- `source/modules/hr/employees/spouses/spouse.schema.ts`
+
+New code must look like it came from the same person who wrote those.
+
+### 3.1 Controller shape — the one true template
+
+Every handler looks like this:
 
 ```ts
+// Short label of what this does
 export const handlerName = async (req: Request, res: Response): Promise<void> => {
     try {
-        // 1. read params
+        // Read params
         const matricule: string = req.params.matricule as string
 
         if(!matricule) {
@@ -81,7 +133,7 @@ export const handlerName = async (req: Request, res: Response): Promise<void> =>
             return
         }
 
-        // 2. (if body) validate with safeParse + flattenError
+        // Validate body (skip on GET)
         const result = someSchema.safeParse(req.body)
         if(!result.success) {
             const fieldErrors = z.flattenError(result.error)
@@ -90,10 +142,9 @@ export const handlerName = async (req: Request, res: Response): Promise<void> =>
         }
         const data = result.data
 
-        // 3. Prisma call
+        // DB call
         const thing = await prisma.something.create({ data: { ...data } })
 
-        // 4. respond
         res.status(200).json(thing)
     } catch (error) {
         res.status(500).json({message:"Internal server error"})
@@ -102,44 +153,47 @@ export const handlerName = async (req: Request, res: Response): Promise<void> =>
 }
 ```
 
-Keep this shape. Do not introduce:
-- A response envelope like `{ success, data, message }` — handlers return plain objects or arrays.
-- A central error handler. Each handler has its own try/catch.
-- An `AppError` class or similar.
-- Service-layer files (`.service.ts`). Controller files hold both HTTP handling and the Prisma call.
+That's the shape. Keep whitespace quirky and matching: the existing files often have a space before `:` in object properties, use 4-space indent, and keep try/catch inline. **Do not reformat existing files to make them "cleaner".** Match them.
 
-### 3.2 Validation
+### 3.2 What NOT to introduce
 
-- `import * as z from "zod"` (never `import { z }`).
-- One schema file per resource, co-located with the controller.
-- For creates: define `xSchema`. For updates: derive with `.partial()` or `.omit({...})` — never re-declare.
-- For enums, import the enum from `generated/prisma/enums`:
+- **No response envelope.** No `{ success, data, message }`. Handlers return the raw resource or an array. The error shape is `{ message, error? }`. That's it.
+- **No central error handler / Express error middleware.** Each handler has its own try/catch with `console.log(error)` inside.
+- **No `AppError` or custom error classes.**
+- **No service layer.** The Prisma call lives in the controller file next to the HTTP code. One file per resource.
+- **No `.service.ts` / `.repository.ts` / `.dto.ts` naming.** Files are named after what they hold: `employee.ts`, `spouse.ts`, `parent.ts`, `employee.schema.ts`.
+- **No logger library.** `console.log(error)` in catch blocks. Intentional.
+- **No middleware that wraps try/catch (`asyncHandler`).** The try/catch is written out every time, by hand, like in the existing files.
+- **No request validation middleware library.** `safeParse` inline in the handler.
+- **No regex.**
+- **No `.reduce`, no `Set`.** `.map` and `.filter` are fine when they read clearly. Otherwise a plain `for` loop.
+- **No type-wrapping libraries** (ts-pattern, io-ts, fp-ts, etc.).
+- **No new runtime deps** beyond what's already in `package.json`. Test-only deps are OK (`supertest`).
+
+### 3.3 Validation
+
+- Always `import * as z from "zod"` (never `import { z }`).
+- One schema file per resource, same folder as the controller.
+- Create schema is the full one. Update schema derives via `.partial()` or `.omit({...})` — never re-declare.
+- Enums come from Prisma's generated client:
   ```ts
   import { ContractType } from "../../../../../generated/prisma/enums";
-  // ...
   contractType: z.enum(ContractType)
   ```
-- For dates always `z.coerce.date()`.
-- For optional nullable fields: `z.string().nullable().optional()`.
-- For phones: `z.e164()` (already used in `contactSchema.ts`).
+- Dates: `z.coerce.date()`.
+- Optional nullable fields: `z.string().nullable().optional()`.
+- Phones: `z.e164()` (like `contactSchema.ts` already does).
+- Error flattening: always `const fieldErrors = z.flattenError(result.error)` and respond with `{ message: "Bad Schema", error: fieldErrors.fieldErrors }`.
 
-### 3.3 Prisma transactions
+### 3.4 Prisma rules
 
-Use `prisma.$transaction(async (tx) => { ... })` when the write spans two tables. Call with `await` at the top level — do NOT forget the `await` (the existing `createEmployee` and `addSpouse` are missing it; fix those as part of §5).
+- Multi-table writes go through `prisma.$transaction(async (tx) => { ... })`.
+- **Always `await` the transaction** at the top level. The existing `createEmployee` and `addSpouse` are missing it — fix them (§5).
+- Inside the transaction use `tx.something.create`, not `prisma.something.create`.
+- Avoid putting network calls (bcrypt is fine, HTTP calls are not) inside the transaction callback — but `hashPassword` is already correctly computed before the transaction in `createEmployee`.
+- For reads with related rows, use `include` or `select` — mirror the existing `findUnique({ include: { spouses: true } })` pattern.
 
-### 3.4 Status codes
-
-- 200 for GET and PATCH success.
-- 201 for POST create success.
-- 204 is not used — always return the resource.
-- 400 for bad params/bad schema.
-- 404 when a resource lookup returns null.
-- 409 for business rule conflicts (e.g. polygamy).
-- 500 for any `catch`.
-
-### 3.5 Router style
-
-Mirror `hrRouter.ts`:
+### 3.5 Router style — mirror `employeeRouter.ts` (what `hrRouter.ts` becomes)
 
 ```ts
 import { Router } from "express";
@@ -147,43 +201,117 @@ import { handlerA, handlerB } from "./some.controller";
 
 const router = Router()
 
+// Short label grouping the next lines
 router.post("/" , handlerA)
 router.get("/" , handlerB)
 
-export default router    // ← always export default
+export default router    // ← ALWAYS export default
 ```
 
-The HR router is mounted at `/api/v1/hr/employees` (see §4 for app.ts wiring). That means `router.post("/")` in `hrRouter` resolves to `POST /api/v1/hr/employees`. Sub-paths follow from there.
+Notice the author's habits:
+- `router.post("/" , handlerA)` — space before the comma (keep it).
+- Section labels as comments: `// Spouse`, `// Children`, `// Parents`, etc.
+- Inline end-of-line comments: `router.post("/:matricule/spouses", addSpouse) // Add spouse // check for polygamy`
 
-### 3.6 Things that are NOT part of this style — don't add them
+Match these.
 
-- No logger lib. Use `console.log(error)` in catch blocks (same as existing code).
-- No class-based controllers.
-- No dependency injection containers.
-- No OpenAPI generation at runtime.
-- No regex.
-- No `.filter`/`.reduce` tricks when a plain loop is clearer.
+### 3.6 Comments — the author's distinctive style (very important)
+
+The author comments as he writes. Comments are short, casual, in his own voice. They serve three purposes:
+
+**(a) Section labels inside files or routers.** One-line, plain English.
+
+```ts
+// Employees
+router.post("/" , createEmployee)
+router.get("/" , getEmployees)
+
+// Spouses
+router.get("/:matricule/spouses", listSpouses)
+```
+
+**(b) Inside a function, labelling the step about to happen.** Imperative.
+
+```ts
+// Check if the employee already has an active spouse
+const activeSpouseCount = employee.spouses.filter(s => s.isActive).length
+
+// If monogamous, reject
+if (employee.marriageRegime === "MONOGAMOUS" && activeSpouseCount >= 1) {
+    res.status(409).json({message: "Employee is monogamous and already has a spouse"})
+    return
+}
+```
+
+**(c) Honest TODOs to future self.** Casual tone, no JIRA ticket references. These are important — the author actively uses them to track things. Keep the voice.
+
+Examples pulled from existing code, which you should emulate:
+
+```ts
+// We need to build dynamic Queries here later
+// find a solution for users with no employee records
+// Maybe we should only end marriage of employees that are not archived
+// Not supposed to be there
+// change later
+// ALLOW THE API TO BE ACCESSED BY BOTH HR AND EMPLOYEE
+// You need to fix these API with/employee
+```
+
+Rules for comments:
+
+- **No JSDoc.** No `/** @param ... @returns ... */`. Ever.
+- **No Doxygen.** No `@file`, `@brief`, etc.
+- **No commented-out code** left in finished files. The author sometimes leaves scratch (`DummyFunction` at the bottom of `spouse.ts` is intentional) — leave that alone, but do not add new commented-out blocks.
+- **No "AI slop" comments.** Avoid obvious ones like `// Create a new user` above `prisma.user.create` — the code already says that. Comment the *reason*, the *gotcha*, the *TODO*, not the code itself.
+- **Short.** Most comments are under 10 words.
+- **Lowercase after `//`.** The author often writes lowercase; follow him.
+- **Keep his casual register.** If he would write `// change later`, write `// change later`. Don't over-formalize to `// Pending implementation — track in backlog`.
+- **Use TODO-style notes freely.** They're how he thinks. If you're punting on something, write one. If you spot something that the current slice doesn't cover, write one.
+- **No CEO-facing tone.** This is internal code for him and Franck. Dry humour is fine (there's already `// Untill Franck learns to use Refresh Tokens` in `lib/jwt.ts`).
+
+When in doubt: ask yourself "would the author have written this comment?" If no, delete it.
+
+### 3.7 Status codes (match existing handlers)
+
+- 200 for GET and PATCH success.
+- 201 for POST create success.
+- 400 for bad params / bad schema.
+- 404 when a lookup returns `null`.
+- 409 for business rule conflicts (polygamy, etc.).
+- 500 for any `catch`.
+- 204 is not used. Always return the resource (or at minimum a `{message: "..."}`).
 
 ---
 
-## 4. Wire the app (first task)
+## 4. Wiring the app
 
-`source/app.ts` is a stub. Replace it with real routing:
+### 4.1 `source/app.ts`
+
+Replace the stub with:
 
 ```ts
 import express from "express"
 import hrRouter from "./modules/hr/hrRouter"
 import authRouter from "./modules/auth/authRouter"
 import userRouter from "./modules/admin/users/userRouter"
+import companyRouter from "./modules/company/companyRouter"
+import { requireAuth, requireRole } from "./lib/auth.middleware"
 
 const app = express()
 
 app.use(express.json())
 
-app.use("/api/v1/hr/employees", hrRouter)
+// Public
 app.use("/api/v1/auth", authRouter)
-app.use("/api/v1/admin/users", userRouter)
 
+// Protected
+app.use("/api/v1/hr", requireAuth, hrRouter)
+app.use("/api/v1/admin/users", requireAuth, requireRole(["Admin", "HR"]), userRouter)
+
+// Shared org structure — not HR
+app.use("/api/v1/company", requireAuth, companyRouter)
+
+// Health
 app.get("/", (req, res) => {
     res.send("Yousra ERP API")
 })
@@ -191,163 +319,334 @@ app.get("/", (req, res) => {
 export default app
 ```
 
-Add `export default router` to the bottom of `hrRouter.ts`, `authRouter.ts`, and `userRouter.ts` (currently missing on all three).
+### 4.2 `source/modules/hr/hrRouter.ts` — the aggregator
+
+The current `hrRouter.ts` holds all the employee-related routes and has bugs (§5). **Rename** that file to `source/modules/hr/employees/employeeRouter.ts` and **create a new** `source/modules/hr/hrRouter.ts` that aggregates:
+
+```ts
+import { Router } from "express";
+import employeeRouter from "./employees/employeeRouter";
+import positionRouter from "./positions/positionRouter";
+import skillRouter from "./skills/skillRouter";
+import contractRouter from "./contracts/contractRouter";
+
+const router = Router()
+
+// Sub-routers — each lives in its own folder under source/modules/hr/
+router.use("/employees", employeeRouter)
+router.use("/positions", positionRouter)
+router.use("/skills", skillRouter)
+router.use("/contracts", contractRouter)
+
+export default router
+```
+
+That way **every HR-owned route lives under `/api/v1/hr/*`** and every HR-owned file lives under `source/modules/hr/`.
+
+### 4.3 `source/modules/company/companyRouter.ts` — the aggregator for the company module
+
+Same pattern as `hrRouter.ts`. Combines companies + departments under one mount point:
+
+```ts
+import { Router } from "express";
+import companiesRouter from "./companies/companyRouter";
+import departmentsRouter from "./departments/departmentRouter";
+
+const router = Router()
+
+// Sub-routers — each lives in its own folder under source/modules/company/
+router.use("/companies", companiesRouter)
+router.use("/departments", departmentsRouter)
+
+export default router
+```
+
+Mount point from `app.ts`: `/api/v1/company`. So companies CRUD sits at `/api/v1/company/companies/*` and departments at `/api/v1/company/departments/*`.
+
+> Naming note — the inner file is `companies/companyRouter.ts` (singular "company" like the Prisma model). Don't rename it to `companiesRouter.ts`. Same for `departments/departmentRouter.ts`.
 
 ---
 
-## 5. HR module — bugs to fix (highest priority)
+## 5. Bugs in existing HR files — fix these FIRST
 
-Fix these before adding anything new. Do each in its existing file.
+Before adding anything new. One commit per group.
 
-### 5.1 `hrRouter.ts`
+### 5.1 `source/modules/hr/employees/employeeRouter.ts` (currently `hrRouter.ts`)
 
-- `router.get("/matricule", getAnEmployee)` → must be `/:matricule`
-- Children routes missing `/children/` segment:
-  - `router.get("/:matricule/:childMatricule", getAChild)` → `/:matricule/children/:childMatricule`
-  - `router.patch("/:matricule/:childMatricule", updateChild)` → `/:matricule/children/:childMatricule`
-  - `router.delete("/:matricule/:childMatricule", DeleteChildren)` → `/:matricule/children/:childMatricule`
-- Rename `DeleteChildren` → `deleteChild` (singular, camelCase) in both the controller and the router.
-- Academic credentials — handlers swapped:
+- Rename the file to `source/modules/hr/employees/employeeRouter.ts`. Update the import in the new `hrRouter.ts` accordingly.
+- Strip the `/employees` prefix from every route (since the aggregator now mounts this router under `/employees`):
+  - `router.get("/employees/:matricule/skills", getSkills)` → `router.get("/:matricule/skills", getSkills)`
+  - Same for every `/employees/...` line in the file.
+- Fix broken paths:
+  - `router.get("/matricule", getAnEmployee)` → `router.get("/:matricule", getAnEmployee)` (missing colon)
+  - `router.get("/:matricule/:childMatricule", getAChild)` → `router.get("/:matricule/children/:childMatricule", getAChild)` (missing `/children`)
+  - Same insert for `PATCH` and `DELETE` on children
+  - `router.get("/employees/:matricule/position/:assignmentId", getPosition)` → `router.get("/:matricule/positions/:assignmentId", getPosition)` (plural + prefix)
+- Fix swapped handlers on academic credentials:
   - `router.get("/:matricule/academic-credentials", addCredential)` → should call `getCredentials`
   - `router.post("/:matricule/academic-credentials", getCredentials)` → should call `addCredential`
-- Skills + positions prefix is doubled:
-  - `router.get("/employees/:matricule/skills", getSkills)` → `/:matricule/skills`
-  - Same for all `/employees/:matricule/...` lines in that file — strip the extra `/employees` since the router is already mounted under `/api/v1/hr/employees`.
-- `router.get("/employees/:matricule/position/:assignmentId", getPosition)` → `/:matricule/positions/:assignmentId` (also singular → plural)
-- Add `export default router` at the bottom.
+- Rename `DeleteChildren` → `deleteChild` (singular, lower-camel) in both the controller and the router.
+- Add `export default router` at the bottom (currently missing).
+- Keep the `// Spouse`, `// Children`, `// Parents`, etc. section comments — they're the author's style.
 
 ### 5.2 `employee.ts` — `createEmployee`
 
-- `createEmployeeAndUser` is declared but never awaited at the outer level. Change `const createEmployeeAndUser = await prisma.$transaction(...)` and remove the stray close pattern.
-- `employeeMatricule: "SOONTOBEADDED"` — generate the matricule from `data.employeeMatricule` (which the schema validates). The caller supplies it. Remove the placeholder.
-- The transaction currently creates the User even when the caller's `data.email` conflicts — wrap the `tx.user.create` inside the transaction so both roll back together. (The code already does this; just make sure the transaction awaits.)
-- After the transaction succeeds, return the created employee (not just `{message: "..."}`).
+**Important design change — user creation comes OUT of this handler.** User accounts and employee records are independent (that's the design: a user can exist without an employee, and HR links them later with the new endpoint in §6.9). So:
+
+- **Remove the `tx.user.create` call entirely from the transaction.** No user is created here. `createEmployee` creates only the employee row.
+- Because only one table is written, you can drop `prisma.$transaction` and use `prisma.employee.create` directly. Simpler, same result.
+- Remove the `"SOONTOBEADDED"` placeholder for `employeeMatricule`. The schema validates `employeeMatricule`, so use `data.employeeMatricule` directly.
+- Remove `email`, `password`, and `role` from `employeeSchema` if they're there — they belong on `userSchema` now. Keep only what lives on `Employee`.
+- Return the created employee with status 201.
+- Short comment at the top: `// Employee has no user attached yet — HR links one via /link-user`.
+- Leave the `// We need to build dynamic Queries here later` comment in `getEmployees` as-is — that's the author's style of TODO-marker.
 
 ### 5.3 `employee.ts` — `archiveEmployee`, `restoreEmployee`, `listArchivedEmployees`
 
-- `archiveEmployee` body is incomplete after `const result = archiveEmployeeSchem` — finish it: validate the body with `archiveEmployeeSchema`, then `prisma.employee.update({ where: { employeeMatricule: matricule }, data: { isArchived: true, departureDate: data.effectiveDate } })`.
-- `restoreEmployee` — implement: set `isArchived: false`, set `departureDate: null`.
-- `listArchivedEmployees` — implement: `prisma.employee.findMany({ where: { isArchived: true } })`.
+- `archiveEmployee` is cut off mid-function (`const result = archiveEmployeeSchem`). Finish it: validate body, then `prisma.employee.update({ where: { employeeMatricule: matricule }, data: { isArchived: true, departureDate: data.effectiveDate } })`. Add a comment: `// We keep the record; just flag it archived`.
+- `restoreEmployee` — implement: `isArchived: false`, `departureDate: null`. Comment: `// Reversing archive; contracts and assignments stay as they were`.
+- `listArchivedEmployees` — implement: `findMany({ where: { isArchived: true } })`.
 
-### 5.4 `spouse.ts` — `addSpouse`
+### 5.4 `spouses/spouse.ts` — `addSpouse`
 
-- Polygamy check reads `employee.spouses` as a boolean but `spouses` is an array. Rewrite the check:
+- The polygamy check reads `employee.spouses` as a boolean but it's an array. Rewrite:
   ```ts
+  // Check if the employee already has an active spouse
   const activeSpouseCount = employee.spouses.filter(s => s.isActive).length
+
+  // Monogamous employees can only have one active spouse at a time
   if (employee.marriageRegime === "MONOGAMOUS" && activeSpouseCount >= 1) {
       res.status(409).json({message: "Employee is monogamous and already has a spouse"})
       return
   }
   ```
-- `const createMarriage = prisma.$transaction(...)` is missing `await`. Add it.
-- `spouseMatricule: "DEFAULT"` — generate a real matricule. Use the pattern `SP-${YEAR}-${incrementing}`. For the first slice, accept the caller's `spouseMatricule` on the Zod schema and use that. (Spouses can have manual matricules since they often aren't in CNPS.)
-- Return the created spouse, not the transaction promise.
+- The transaction is assigned to `createMarriage` but never awaited — add `await`.
+- Replace `spouseMatricule: "DEFAULT"` with `data.spouseMatricule` (the caller passes it in the body — same convention the author used for `employeeMatricule`). Make sure `spouseMatricule` is in the schema. Comment: `// caller supplies the matricule for now — we'll auto-generate later`.
+- Return the created spouse (and the marital status update in a single response if that reads cleanly).
 
-### 5.5 `spouse.ts` — `endMarriage`
+### 5.5 `spouses/spouse.ts` — `endMarriage`, `getSpouse`, `listSpouses`
 
-- Both `matricule` and `spouseMatricule` read from `req.params.matricule` — the second one must be `req.params.spouseMatricule`.
-- The `where:` on the update should be `{ spouseMatricule, employeeMatricule: matricule }` (verify the spouse belongs to that employee).
+- `endMarriage` and `getSpouse` both read `spouseMatricule: string = req.params.matricule as string` — that second read must be `req.params.spouseMatricule`.
+- `endMarriage` — the update's `where` should include both `spouseMatricule` and `employeeMatricule` so the spouse must belong to the right employee.
+- `listSpouses` is cut off — finish it: `prisma.employeeSpouse.findMany({ where: { employeeMatricule: matricule } })`.
 
-### 5.6 `spouse.ts` — `getSpouse`, `listSpouses`
+### 5.6 `parents/parent.ts` — `addParent`
 
-- Same `req.params.matricule` bug — fix both param reads.
-- `listSpouses` controller is cut off in the current file. Finish it: `prisma.employeeSpouse.findMany({ where: { employeeMatricule: matricule } })`.
+- `parentMatricule: "GENERATOR"` — replace with `data.parentMatricule`. Add `parentMatricule` to `parentSchema.ts` with a comment: `// caller supplies it for now`.
 
-### 5.7 `parent.ts` — `addParent`
+### 5.7 `credentials/credential.ts`
 
-- `parentMatricule: "GENERATOR"` — same fix as spouse. Accept it on the schema (add to `parentSchema.ts`) and use it.
+- `getCredential` sends `getCredential` (the function reference!) instead of the fetched row. Fix.
+- `deleteCredential` has an empty try block — implement.
 
-### 5.8 `credential.ts` — `getCredential`
+### 5.8 `contacts/contact.ts` — `getContact`
 
-- The response sends `getCredential` (the function reference) instead of `credential`. Fix.
-- `deleteCredential` has an empty try block. Implement: `prisma.academicCredential.delete({ where: { id, employeeMatricule: matricule } })`.
-
-### 5.9 `contact.ts` — `getContact`
-
-- Validates the body with `emergencyContactSchema` on a GET request. Remove that block — GETs don't have a body.
+- `getContact` runs `safeParse` on `req.body` for a GET. Remove that block — GETs don't have a body.
 
 ---
 
-## 6. New endpoints to implement (follow §3 conventions)
+## 6. New controllers to add — all inside `source/modules/hr/`
 
-These controllers don't exist yet. Create one file per group under `source/modules/hr/`.
+Create one folder per resource, each with three files: `<thing>.ts`, `<thing>Router.ts`, `<thing>Schema.ts`. Mirror `source/modules/hr/employees/parents/` for the shape.
 
-### 6.1 Employee contracts — `source/modules/hr/employees/employee-contract/contract.ts`
+### 6.1 `source/modules/hr/employees/employee-contract/` — per-employee contracts
 
-The schema already exists (`contractSchema.ts`). Build:
+Schema already exists. Add `contract.ts` and `contractRouter.ts`:
 
-- `POST /:matricule/contracts` → `createContract` — validate body, insert with `employeeMatricule` from params.
-- `GET /:matricule/contracts` → `listContracts` — `findMany({ where: { employeeMatricule } })`.
-- `GET /:matricule/contracts/:contractId` → `getContract`.
-- `PATCH /:matricule/contracts/:contractId` → `updateContract` — derive an `updateContractSchema` with `.omit({ contractId: true, employeeMatricule: true })`.
-- `POST /:matricule/contracts/:contractId/terminate` → `terminateContract` — body `{ terminationDate, terminationReason }`, update those fields.
+- `POST /:matricule/contracts` → `createContract`
+- `GET /:matricule/contracts` → `listContracts`
+- `GET /:matricule/contracts/:contractId` → `getContract`
+- `PATCH /:matricule/contracts/:contractId` → `updateContract`
+- `POST /:matricule/contracts/:contractId/terminate` → `terminateContract` (body: `{ terminationDate, terminationReason }`)
 
-Wire these in `hrRouter.ts` below the positions section.
+Wire these in `employeeRouter.ts` under a `// Contracts` section comment.
 
-### 6.2 Top-level organizational modules — new module folders
+### 6.2 The `company` module — companies + departments together
 
-Each is its own module folder under `source/modules/`, each with `<thing>.ts`, `<thing>Router.ts`, `<thing>Schema.ts`.
+Lives in `source/modules/company/` (see §2 and §4.3). One aggregator router, two sub-folders. Mount point from `app.ts` is `/api/v1/company`.
 
-- `source/modules/companies/`
-  - `POST /` `GET /` `GET /:id` `PATCH /:id` `DELETE /:id`
-  - Mount in `app.ts` at `/api/v1/companies`.
-- `source/modules/departments/`
-  - `POST /` `GET /` `GET /:departmentId` `GET /:departmentId/children` `PATCH /:departmentId` `DELETE /:departmentId`
-  - Mount at `/api/v1/departments`.
-- `source/modules/positions/`
-  - `POST /` `GET /` `GET /:id` `GET /:id/subordinates` `GET /:id/holders` `PATCH /:id` `DELETE /:id`
-  - Plus nested position skills:
-    - `GET /:id/skills` `POST /:id/skills` `PATCH /:id/skills/:skillId` `DELETE /:id/skills/:skillId`
-  - Mount at `/api/v1/positions`.
-  - When `PATCH` changes `supervisorId`, reject if superior is the same id (`supervisorId === id`). Cycle detection and cross-department checks are **out of scope for this slice** — add a `// TODO: cycle / cross-department check` comment and move on.
-- `source/modules/skills/`
-  - `POST /` `GET /` `GET /:id` `PATCH /:id` `DELETE /:id`
-  - Mount at `/api/v1/skills`.
-- `source/modules/contracts/` (top-level, read-only — writes go through the per-employee route)
-  - `GET /` `GET /:contractId` `GET /expiring` (returns CDD/STAGE/TEMPORAIRE where `endDate` is within the next 60 days)
-  - Mount at `/api/v1/contracts`.
+#### 6.2.a `source/modules/company/companies/`
 
-For each new module, follow the exact shape of `source/modules/admin/users/` — router + controller + schema.
+- `POST /` `createCompany`
+- `GET /` `listCompanies`
+- `GET /:id` `getCompany`
+- `PATCH /:id` `updateCompany`
+- `DELETE /:id` `deleteCompany`
 
-### 6.3 Auth module — complete it
+Final URLs: `/api/v1/company/companies/*`.
 
-- `authRouter.ts` — add `export default router`, and add routes:
-  - `POST /login` → `loginEmployee` (already named `UserLogin` — rename to `loginEmployee`)
+#### 6.2.b `source/modules/company/departments/`
+
+- `POST /` `createDepartment`
+- `GET /` `listDepartments`
+- `GET /:departmentId` `getDepartment`
+- `GET /:departmentId/children` `listChildDepartments` — direct children only
+- `PATCH /:departmentId` `updateDepartment`
+- `DELETE /:departmentId` `deleteDepartment`
+
+Final URLs: `/api/v1/company/departments/*`.
+
+HR owns the data (role-gated write access, see §7) but the module itself is separate so finance, stock, and inventory can mount the same routers later without pulling in `hr/`.
+
+### 6.4 `source/modules/hr/positions/` (top-level Position catalog)
+
+- `POST /` `createPosition`
+- `GET /` `listPositions`
+- `GET /:id` `getPosition`
+- `GET /:id/subordinates` `listSubordinates`
+- `GET /:id/holders` `listHolders` — employees currently holding this position (active `employeePositions`)
+- `PATCH /:id` `updatePosition`
+- `DELETE /:id` `deletePosition`
+
+On `updatePosition`, if `supervisorId` changes: reject with 400 when `supervisorId === id`. Cross-service / cycle detection is **out of scope** for this slice — write `// TODO: cycle and cross-service check later` and move on.
+
+Plus **nested** `source/modules/hr/positions/position-skills/`:
+- `GET /:id/skills` `listPositionSkills`
+- `POST /:id/skills` `addPositionSkill`
+- `PATCH /:id/skills/:skillId` `updatePositionSkill`
+- `DELETE /:id/skills/:skillId` `removePositionSkill`
+
+### 6.5 `source/modules/hr/skills/` (top-level Skill catalog)
+
+- `POST /` `createSkill`
+- `GET /` `listSkills`
+- `GET /:id` `getSkill`
+- `PATCH /:id` `updateSkill`
+- `DELETE /:id` `deleteSkill`
+
+### 6.6 `source/modules/hr/contracts/` (top-level, read-only)
+
+Writes go through the per-employee route in §6.1. Here we only expose cross-employee reads:
+
+- `GET /` `listAllContracts`
+- `GET /:contractId` `getContractById`
+- `GET /expiring` `listExpiringContracts` — CDD / STAGE / TEMPORAIRE where `endDate` is within the next 60 days
+
+### 6.7 Auth module — complete it
+
+- `source/modules/auth/authRouter.ts` — missing `export default router`. Add it, plus:
+  - `POST /login` → the existing `UserLogin` (rename to `loginEmployee` to match the public-facing name)
   - `POST /change-password` → `changePassword`
-- `auth.ts` — finish:
-  - `loginEmployee`: already mostly done; the `find a solution for users with no employee records` TODO is fine as-is for the first slice — current behaviour (fallback to `user.username`) is correct.
-  - `changePassword`: validate body with `updatePasswordSchema`, read `userId` off `req.user` (see §7 for middleware), look up user, `verifyPassword` on `currentPassword`, `hashPassword` on `newPassword`, update.
+- `source/modules/auth/auth.ts` — finish `changePassword`:
+  - Validate with `updatePasswordSchema`.
+  - Read `userId` from `req.user` (set by middleware §7).
+  - Look up user, `verifyPassword(currentPassword, user.password)`, `hashPassword(newPassword)`, update.
+  - Leave the existing `// find a solution for users with no employee records` comment in `UserLogin` as-is. It's a real TODO.
+- **Do not** add `/refresh` or `/logout` yet. Not part of this slice.
 
-### 6.4 Admin / Users — complete
+### 6.8 Admin / Users — complete it
 
-- `userRouter.ts` — add `export default router` at the bottom.
-- `user.ts` — add `deleteUser` handler (`DELETE /:userId`) and wire the route.
+- `source/modules/admin/users/userRouter.ts` — missing `export default router`. Add it.
+- Add `deleteUser` handler to `user.ts` and wire `DELETE /:userId`.
+
+### 6.9 Link a user account to an employee record — the missing piece
+
+Design recap: a `User` can exist without an `Employee` (e.g., early admin accounts). An `Employee` is created without a `User` (§5.2 change). HR then **links** them when the person is ready to log in. That link endpoint is what's missing.
+
+Lives in HR because HR owns the link action. Add to `source/modules/hr/employees/employee.ts`:
+
+```ts
+// HR links an existing user account to an employee record
+export const linkUserToEmployee = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const matricule: string = req.params.matricule as string
+
+        if(!matricule) {
+            res.status(400).json({message: "Invalid Parameters"})
+            return
+        }
+
+        const result = linkUserToEmployeeSchema.safeParse(req.body)
+        if(!result.success) {
+            const fieldErrors = z.flattenError(result.error)
+            res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
+            return
+        }
+        const data = result.data
+
+        // Employee must exist
+        const employee = await prisma.employee.findUnique({ where: { employeeMatricule: matricule } })
+        if(!employee) {
+            res.status(404).json({message: "Employee not found"})
+            return
+        }
+
+        // and must not already be linked
+        if(employee.userId) {
+            res.status(409).json({message: "Employee already linked to a user"})
+            return
+        }
+
+        // User must exist
+        const user = await prisma.user.findUnique({ where: { Id: data.userId } })
+        if(!user) {
+            res.status(404).json({message: "User not found"})
+            return
+        }
+
+        // and must not already be linked to another employee
+        const existingLink = await prisma.employee.findUnique({ where: { userId: data.userId } })
+        if(existingLink) {
+            res.status(409).json({message: "User is already linked to another employee"})
+            return
+        }
+
+        const updated = await prisma.employee.update({
+            where: { employeeMatricule: matricule },
+            data: { userId: data.userId }
+        })
+
+        res.status(200).json(updated)
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
+    }
+}
+```
+
+Reuse `linkUserToEmployeeSchema` — it's already defined in `source/modules/auth/authSchema.ts`. Import from there.
+
+Route — add in `employeeRouter.ts` in a new `// Link user` section:
+
+```ts
+// Link user
+router.post("/:matricule/link-user", linkUserToEmployee)
+```
+
+Final URL: `POST /api/v1/hr/employees/:matricule/link-user` with body `{ userId: "<user uuid>" }`.
+
+**Unlink** (optional, nice to have): `DELETE /:matricule/link-user` sets `userId` back to `null`. Comment: `// Unlink when the person leaves but their user account stays`. Skip it for this slice if time is tight.
 
 ---
 
-## 7. Auth middleware (one file)
+## 7. Auth middleware — `source/lib/auth.middleware.ts`
 
-Create `source/lib/auth.middleware.ts`:
+One file. Keep it minimal, keep it matching the author's style (lowercase names, inline try/catch, `console.log(error)`).
 
 ```ts
 import type { Request, Response, NextFunction } from "express";
 import { verifyToken } from "./jwt";
 
+// Augment Express Request so TS knows req.user
 declare module "express-serve-static-core" {
     interface Request {
         user?: { userId: string; role: string };
     }
 }
 
+// Require a valid Bearer token; attach req.user
 export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const header = req.headers.authorization;
+        const header = req.headers.authorization
+
         if (!header || !header.startsWith("Bearer ")) {
             res.status(401).json({message: "Missing or invalid Authorization header"})
             return
         }
+
         const token = header.slice(7)
         const payload = await verifyToken<{ userId: string; role: string }>(token)
+
         req.user = { userId: payload.userId, role: payload.role }
         next()
     } catch (error) {
@@ -356,6 +655,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 }
 
+// Restrict a route to specific roles — use after requireAuth
 export const requireRole = (allowed: string[]) => {
     return (req: Request, res: Response, next: NextFunction): void => {
         if (!req.user) {
@@ -371,45 +671,51 @@ export const requireRole = (allowed: string[]) => {
 }
 ```
 
-Apply `requireAuth` to all routers in `app.ts` **except** `/api/v1/auth/login` and `/api/v1/auth/refresh`:
+Apply role-gates at the **router** level inside each sub-router, not inside controllers. Example in `companyRouter.ts` (path: `source/modules/company/companies/companyRouter.ts`):
 
 ```ts
-app.use("/api/v1/auth", authRouter)                              // public endpoints inside
-app.use("/api/v1/hr/employees", requireAuth, hrRouter)
-app.use("/api/v1/admin/users", requireAuth, requireRole(["Admin", "HR"]), userRouter)
-app.use("/api/v1/companies", requireAuth, companiesRouter)
-// ...etc
-```
+import { Router } from "express";
+import { requireRole } from "../../../lib/auth.middleware";
+import { createCompany, listCompanies, getCompany, updateCompany, deleteCompany } from "./company";
 
-The HR mutations (POST/PATCH/DELETE) get `requireRole(["HR"])` added at the specific route level inside `hrRouter.ts`. GETs stay open to any authenticated role. **Do not** scatter role checks throughout controllers — keep them in router-level middleware.
+const router = Router()
+
+// Reads — anyone authenticated
+router.get("/", listCompanies)
+router.get("/:id", getCompany)
+
+// Writes — HR only (HR owns the data even though it isn't under hr/)
+router.post("/", requireRole(["HR"]), createCompany)
+router.patch("/:id", requireRole(["HR"]), updateCompany)
+router.delete("/:id", requireRole(["HR"]), deleteCompany)
+
+export default router
+```
 
 ---
 
-## 8. Unit tests — write these after the module compiles cleanly
+## 8. Unit tests — write after the module compiles cleanly
 
-Use **Bun's built-in test runner** (`bun test`). No Jest, no Vitest.
+Use **Bun's built-in test runner** (`bun test`). Not Jest. Not Vitest.
 
 ### 8.1 Setup
 
-- Add `source/__tests__/` as the test folder.
-- One test file per controller: `employee.test.ts`, `spouse.test.ts`, etc.
-- Use `supertest` for HTTP-level tests. Add to `package.json`:
+- Folder: `source/__tests__/`.
+- One test file per controller, named `<thing>.test.ts`.
+- Add `supertest` + its types:
   ```
   bun add -d supertest @types/supertest
   ```
-- Create `source/__tests__/helpers.ts` with:
-  - `buildTestApp()` — returns the Express app wired up (same as `source/app.ts`)
-  - `issueTestToken(userId, role)` — uses the same `signAccessToken` from `lib/jwt`
-  - A `beforeEach` helper that truncates relevant tables using `prisma.$transaction([prisma.employeeSpouse.deleteMany(), ...])`
+- Create `source/__tests__/helpers.ts`:
+  - `buildTestApp()` → returns the Express app (same wiring as `source/app.ts`)
+  - `issueTestToken(userId, role)` → uses `signAccessToken` from `lib/jwt`
+  - `resetDb()` → delete-all across HR tables, in FK-safe order. Do NOT drop tables.
+  - `seedEmployee()`, `seedCompany()`, etc. → small helpers that insert valid rows and return them
 
-### 8.2 What to test per endpoint (keep simple)
-
-For every endpoint: **happy path + one 400 + one 404** (+ one 409 where applicable, e.g. polygamy).
-
-Example — `employee.test.ts`:
+### 8.2 The test shape to use (match this)
 
 ```ts
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from "bun:test"
+import { describe, test, expect, beforeAll, beforeEach } from "bun:test"
 import request from "supertest"
 import { buildTestApp, issueTestToken, resetDb, seedEmployee } from "./helpers"
 
@@ -425,11 +731,12 @@ beforeEach(async () => {
 })
 
 describe("POST /api/v1/hr/employees", () => {
-    test("201 creates an employee with user", async () => {
+    test("201 creates an employee + user", async () => {
         const res = await request(app)
             .post("/api/v1/hr/employees")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ /* valid body */ })
+
         expect(res.status).toBe(201)
         expect(res.body.employeeMatricule).toBeDefined()
     })
@@ -438,84 +745,99 @@ describe("POST /api/v1/hr/employees", () => {
         const res = await request(app)
             .post("/api/v1/hr/employees")
             .set("Authorization", `Bearer ${hrToken}`)
-            .send({ /* body with firstName missing */ })
+            .send({ /* body missing firstName */ })
+
         expect(res.status).toBe(400)
         expect(res.body.message).toBe("Bad Schema")
     })
 })
-
-describe("GET /api/v1/hr/employees/:matricule", () => {
-    test("200 returns the employee", async () => { /* ... */ })
-    test("404 for unknown matricule", async () => { /* ... */ })
-})
 ```
 
-### 8.3 Coverage target (not exhaustive — this is the first slice)
+### 8.3 Coverage — first slice
 
-Write tests for (at minimum):
+For each controller, at minimum:
 
-- `employee`: create, get-one, list, archive, restore, list-archived, get-archived
-- `spouse`: add (incl. 409 polygamy), list, get, update, endMarriage
-- `child`: add, list, get, update, delete
-- `parent`: add, list, get, update, delete
-- `contact`: add, list, get, update, delete
-- `credential`: add, list, get, update, delete
-- `employee-skill`: add, list, get, update, delete
-- `employee-position`: add, list, get, update, endAssignment
-- `employee-contract`: create, list, get, update, terminate
-- `company`, `department`, `position`, `skill`, top-level `contract`: happy-path CRUD each
+- One **happy path** test
+- One **400 validation** test
+- One **404 not-found** test (where applicable)
+- One **409 conflict** test only where applicable (polygamy on `addSpouse`, duplicate matricule on `createEmployee`)
 
-Skip exhaustive error-path tests — one 400 and one 404 per endpoint is enough for this slice.
+That's enough. Don't go for exhaustive matrix coverage — this is a smoke-test suite.
+
+Controllers to cover:
+
+- `employee` (create, getOne, list, archive, restore, listArchived, getArchived, update)
+- `spouse` (add, list, get, update, endMarriage) — include the 409 polygamy case
+- `child`, `parent`, `contact`, `credential` (add, list, get, update, delete)
+- `employee-skill` (add, list, get, update, delete)
+- `employee-position` (add, list, get, update, endAssignment)
+- `employee-contract` (create, list, get, update, terminate)
+- `company`, `department`, `position`, `skill` (CRUD each)
+- `contract` top-level (list, getById, expiring)
+- `auth` (login happy path + wrong password)
+- `user` (create, get, update, delete)
 
 ### 8.4 Test DB
 
-- Use a dedicated test schema. Doppler config `.env.test` or Doppler config `test` with its own `DATABASE_URL` pointing at a disposable Supabase branch (or a local Postgres).
-- `resetDb()` deletes all rows between tests — in a safe order (children first, then parents). Do **not** drop tables.
-- Add a test script to `package.json`:
+- Doppler config `test` with its own `DATABASE_URL` → a disposable Supabase branch or a local Postgres.
+- `package.json` script:
   ```json
   "test": "doppler run --config test -- bun test"
   ```
 
+### 8.5 Comment the tests too
+
+Short section comments inside each test file in the author's style:
+
+```ts
+// Happy path — HR creates a new hire
+test("201 creates an employee + user", async () => { /* ... */ })
+
+// Validation failure
+test("400 on missing firstName", async () => { /* ... */ })
+```
+
 ---
 
-## 9. What NOT to do
+## 9. Do-not list (reminder)
 
-- Don't touch `prisma/schema.prisma` unless a compile fails. The schema is locked.
-- Don't move files.
-- Don't rename working functions.
+- Don't modify `prisma/schema.prisma` unless something won't compile. The schema is locked.
+- Don't move existing files to new locations beyond the one rename in §5.1.
+- Don't rename working functions (only the ones §5 explicitly says to rename).
 - Don't add OpenAPI/Swagger generation now.
-- Don't add pagination or filtering (small scale; frontend handles it).
+- Don't add pagination or filtering (frontend handles it).
 - Don't add a global error handler or request logger.
 - Don't introduce ESLint/Prettier configs now.
-- Don't convert existing CommonJS patterns to ES modules — the repo is already ESM-ready.
-- Don't replace `console.log(error)` with a proper logger — it's intentional for v1.
+- Don't introduce DTO classes, zod-to-ts helpers, or type-wrapping libraries.
+- Don't convert `console.log(error)` to a proper logger — it's intentional.
+- Don't put HR-owned data (positions, skills, contracts, employees) anywhere but `source/modules/hr/`. No `source/modules/positions/`, no `source/modules/skills/`, no `source/modules/contracts/`.
+- Don't put companies or departments under `hr/`. They live together inside their own `source/modules/company/` module with its own aggregator router.
+- Don't let `createEmployee` create a user. User and employee are separate; HR links them with the `link-user` endpoint (§6.9).
 
 ---
 
-## 10. Order of work
+## 10. Order of work — one commit per step
 
-Do this in order. Push a commit after each step.
+1. Fix §5 bugs. `bun run dev` should start cleanly.
+2. Wire `source/app.ts` + add `export default router` to every router + rename `hrRouter.ts` → `employeeRouter.ts` + create the new aggregator `hrRouter.ts` (§4).
+3. Create the auth middleware (§7).
+4. Finish the auth module and admin/users module (§6.7, §6.8).
+5. Build the new modules — one commit each: the `company/` module with its aggregator + `companies/` + `departments/` (§6.2), then the HR sub-modules `hr/employees/employee-contract/`, `hr/positions/`, `hr/skills/`, `hr/contracts/` (§6.1, §6.4–§6.6), then the `link-user` endpoint in HR (§6.9).
+6. Add tests (§8). `bun test` → all green. Only then stop.
 
-1. Fix §5 bugs. Repo should compile cleanly and `bun run dev` should start.
-2. Wire `app.ts` per §4 + add `export default router` to all three routers.
-3. Implement the auth middleware (§7) and apply it in `app.ts`.
-4. Complete the auth module (§6.3) and user module (§6.4).
-5. Build the 5 new top-level modules (§6.2).
-6. Build employee-contract (§6.1).
-7. Add tests (§8). Run `bun test` — all green before you stop.
-
-If any step takes you off the expected path (a Prisma migration surprises you, an enum is missing, something doesn't compile), stop and explain in a comment instead of guessing a fix.
+Between commits, run `bun run dev` and manually POST through Postman (collection: "Yousra RH") to confirm nothing is broken.
 
 ---
 
-## 11. Reference — endpoint inventory (from the Postman collection "Yousra RH")
+## 11. Endpoint inventory (what Postman documents)
 
-All under `/api/v1/hr/employees` unless marked top-level.
+All under `/api/v1/hr/*`.
 
-**Employees**
+**Employees** — mounted at `/employees` by `hrRouter.ts` → `employeeRouter.ts`
 - `GET /`, `GET /:matricule`, `POST /`, `PATCH /:matricule`
 - `POST /:matricule/archive`, `POST /:matricule/restore`
 - `GET /archived`, `GET /archived/:matricule`
+- `POST /:matricule/link-user` (§6.9)
 
 **Spouses** `/:matricule/spouses`
 - `GET /`, `GET /:spouseMatricule`, `POST /`, `PATCH /:spouseMatricule`, `POST /:spouseMatricule/end`
@@ -541,19 +863,37 @@ All under `/api/v1/hr/employees` unless marked top-level.
 **Employee contracts** `/:matricule/contracts`
 - `GET /`, `GET /:contractId`, `POST /`, `PATCH /:contractId`, `POST /:contractId/terminate`
 
-**Top-level (separate mount points)**
-- `/api/v1/companies` — `GET`, `POST`, `GET /:id`, `PATCH /:id`, `DELETE /:id`
-- `/api/v1/departments` — `GET`, `POST`, `GET /:departmentId`, `GET /:departmentId/children`, `PATCH /:departmentId`, `DELETE /:departmentId`
-- `/api/v1/positions` — `GET`, `POST`, `GET /:id`, `GET /:id/subordinates`, `GET /:id/holders`, `PATCH /:id`, `DELETE /:id`; nested `/skills`: `GET`, `POST`, `PATCH /:skillId`, `DELETE /:skillId`
-- `/api/v1/skills` — `GET`, `POST`, `GET /:id`, `PATCH /:id`, `DELETE /:id`
-- `/api/v1/contracts` — `GET`, `GET /:contractId`, `GET /expiring`
+**Companies (shared org module)** — `/api/v1/company/companies`
+- `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`
 
-**Auth** `/api/v1/auth`
-- `POST /login`, `POST /change-password` (add `/refresh` and `/logout` later — not in this slice)
+**Departments (shared org module)** — `/api/v1/company/departments`
+- `GET /`, `POST /`, `GET /:departmentId`, `GET /:departmentId/children`, `PATCH /:departmentId`, `DELETE /:departmentId`
 
-**Admin / Users** `/api/v1/admin/users`
+**Positions (top-level)** — `/api/v1/hr/positions`
+- `GET /`, `POST /`, `GET /:id`, `GET /:id/subordinates`, `GET /:id/holders`, `PATCH /:id`, `DELETE /:id`
+- Nested position-skills: `GET /:id/skills`, `POST /:id/skills`, `PATCH /:id/skills/:skillId`, `DELETE /:id/skills/:skillId`
+
+**Skills (catalog)** — `/api/v1/hr/skills`
+- `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`
+
+**Contracts (top-level reads)** — `/api/v1/hr/contracts`
+- `GET /`, `GET /:contractId`, `GET /expiring`
+
+**Auth** — `/api/v1/auth`
+- `POST /login`, `POST /change-password`
+
+**Admin / Users** — `/api/v1/admin/users`
 - `POST /`, `GET /`, `GET /:userId`, `PATCH /:userId`, `DELETE /:userId`
 
 ---
 
-End of brief. Start with §5. Ask before straying.
+## 12. One-sentence reminders to tape above your desk
+
+- Everything HR-owned (employees, positions, skills, contracts) lives in `source/modules/hr/`. Companies and departments live together in their own `source/modules/company/` module, mounted at `/api/v1/company`.
+- User ≠ Employee. HR links them with `POST /api/v1/hr/employees/:matricule/link-user`.
+- Mirror the existing files. If your fingers want to deviate, read `employee.ts` again.
+- Comment like the author comments. Short, casual, in his voice. TODOs allowed.
+- Simple over clever, always.
+- When unsure, stop and ask. Don't guess.
+
+End of brief. Start with §5.

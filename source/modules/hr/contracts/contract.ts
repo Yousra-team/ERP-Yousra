@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import {prisma} from "../../lib/prisma";
+import {prisma} from "../../../lib/prisma";
 
 // Read-only module: contract writes go through /api/v1/hr/employees/:matricule/contracts
 

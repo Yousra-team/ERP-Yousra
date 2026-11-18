@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { SkillCategory } from "../../../generated/prisma/enums";
+import { SkillCategory } from "../../../../generated/prisma/enums";
 
 export const skillSchema = z.object({
     name : z.string().min(1, "Skill name is required"),

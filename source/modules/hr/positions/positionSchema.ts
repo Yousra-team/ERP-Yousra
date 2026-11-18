@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { ProficiencyLevel } from "../../../generated/prisma/enums";
+import { ProficiencyLevel } from "../../../../generated/prisma/enums";
 
 export const positionSchema = z.object({
     title : z.string().min(1, "Position title is required"),

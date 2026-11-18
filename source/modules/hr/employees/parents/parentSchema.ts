@@ -3,8 +3,7 @@ import { gender } from "../employee.schema";
 
 
 export const employeeParentSchema = z.object({
-  // Manual matricule: parents are not in CNPS so the caller supplies it
-  parentMatricule: z.string().min(1, "Parent matricule is required"),
+  parentMatricule: z.string().min(1, "Parent matricule is required"), // caller supplies it for now
   firstName: z.string(),
   lastName: z.string(),
   isAlive: z.boolean(),

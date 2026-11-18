@@ -29,9 +29,11 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
         return
     }
 
-    // spouses is an array: only active marriages count against the monogamy rule
+    // Check if the employee already has an active spouse
     const activeSpouseCount = employee.spouses.filter(s => s.isActive).length
-    if(employee.marriageRegime == "MONOGAMOUS" && activeSpouseCount >= 1) {
+
+    // Monogamous employees can only have one active spouse at a time
+    if(employee.marriageRegime === "MONOGAMOUS" && activeSpouseCount >= 1) {
          res.status(409).json({message: "Employee is monogamous and already has a spouse"})
          return
     }
@@ -53,7 +55,7 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
                 lastName: data.lastName,
                 cniNumber: data.cniNumber,
                 dateOfBirth: data.dateOfBirth,
-                spouseMatricule: data.spouseMatricule,
+                spouseMatricule: data.spouseMatricule, // caller supplies the matricule for now — we'll auto-generate later
                 isDependent: data.isDependent,
                 marriageDate: data.marriageDate,
                 marriageCertificateNo: data.marriageCertificateNo,

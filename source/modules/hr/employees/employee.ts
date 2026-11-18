@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { archiveEmployeeSchema, createEmployeeSchema, updateEmployeeSchema } from "./employee.schema";
 import {prisma} from "../../../lib/prisma";
 import * as z from "zod";
-import { hashPassword } from '../../../lib/password';
+import { linkUserToEmployeeSchema } from "../../auth/authSchema";
 
 // CREATE AN EMPLOYEE
 export const createEmployee = async (req: Request , res: Response): Promise<void> => {
@@ -16,28 +16,23 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
         
         const data = result.data
 
-        const hashedPassword: string = await hashPassword(data.user.password)
-
-        // One transaction: if the user creation fails the employee is rolled back too
-        const createEmployeeAndUser = await prisma.$transaction(async(tx) => {
-        // The user comes first so the employee can store its id (userId link)
-        const user = await tx.user.create({
-            data: {
-                username: data.employeeMatricule, // Employees log in with their matricule
-                firstName: data.firstName,
-                lastName: data.lastName,
-                role: data.user.role,
-                password: hashedPassword
-            },
+        // matricule is the primary key so it can't be reused
+        const existing = await prisma.employee.findUnique({
+            where: { employeeMatricule : data.employeeMatricule }
         });
 
-        const employee = await tx.employee.create({
+        if(existing) {
+            res.status(409).json({message: "An employee with this matricule already exists"})
+            return
+        }
+
+        // Employee has no user attached yet — HR links one via /link-user
+        const employee = await prisma.employee.create({
             data: {
                 firstName : data.firstName,
                 lastName: data.lastName,
                 middleName: data.middleName,
                 employeeMatricule: data.employeeMatricule,
-                userId: user.Id,
                 hireDate: data.hireDate,
                 dateOfBirth: data.dateOfBirth,
                 gender: data.gender,
@@ -52,9 +47,7 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
             }
         });
 
-        return employee
-    })
-   res.status(201).json(createEmployeeAndUser)
+   res.status(201).json(employee)
     } catch (error) {
         res.status(500).json({message:"Internal server or database error"})
         console.log(error)
@@ -123,6 +116,8 @@ export const archiveEmployee = async (req: Request , res: Response): Promise<voi
 
          const data = result.data
 
+         // We keep the record; just flag it archived
+         // TODO: actually terminate the active contract and end assignments, the message below promises it
          const archivedEmployee = await prisma.employee.update({
             where: {
               employeeMatricule : matricule,
@@ -144,6 +139,7 @@ export const restoreEmployee = async (req: Request , res: Response): Promise<voi
     try {
         const matricule = req.params.matricule as string
 
+        // Reversing archive; contracts and assignments stay as they were
         const restoredEmployee = await prisma.employee.update({
             where: {
                 employeeMatricule : matricule,
@@ -222,12 +218,16 @@ export const updateEmployee = async (req: Request , res: Response): Promise<void
         
         const data = result.data
 
+        // schema calls it MarriageRegime but the column is marriageRegime, so map it by hand
+        const { MarriageRegime, ...otherFields } = data
+
         const updateEmployee = await prisma.employee.update({
             where: {
                 employeeMatricule : matricule,
             },
             data: {
-                ...data
+                ...otherFields,
+                marriageRegime : MarriageRegime
             }
         });
 

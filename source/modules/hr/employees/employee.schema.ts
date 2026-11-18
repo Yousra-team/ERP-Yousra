@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { roles } from "../../admin/users/userSchema";
 import { MaritalStatus, MarriageRegime, TerminationReason } from "../../../../generated/prisma/enums";
 
 export const maritalStatus = ["SINGLE",
@@ -26,10 +25,6 @@ export const createEmployeeSchema = z.object({
   phone: z.string("Phone number is required"),
   email: z.email("Invalid email address"),
   residenceAddressLine: z.string().min(1, "Residence address is required"),
-  user: z.object({
-    role: z.enum(roles),
-    password: z.string().min(8, "Password must contain at least 8 characters"),
-  }),
 });
 
 export const archiveEmployeeSchema = z.object({
@@ -40,6 +35,5 @@ export const archiveEmployeeSchema = z.object({
 export const updateEmployeeSchema = createEmployeeSchema.omit({
   employeeMatricule: true,
   niuNumber : true,
-  cnpsNumber: true,
-  user: true
+  cnpsNumber: true
 })

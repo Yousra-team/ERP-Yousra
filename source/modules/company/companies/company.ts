@@ -27,7 +27,7 @@ export const createCompany = async (req: Request , res: Response): Promise<void>
     }
 };
 
-export const getCompanies = async (req: Request , res: Response): Promise<void> => {
+export const listCompanies = async (req: Request , res: Response): Promise<void> => {
     try {
         const companies = await prisma.company.findMany();
         res.status(200).json(companies)

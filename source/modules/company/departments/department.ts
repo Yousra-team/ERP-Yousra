@@ -27,7 +27,7 @@ export const createDepartment = async (req: Request , res: Response): Promise<vo
     }
 };
 
-export const getDepartments = async (req: Request , res: Response): Promise<void> => {
+export const listDepartments = async (req: Request , res: Response): Promise<void> => {
     try {
         const departments = await prisma.department.findMany();
         res.status(200).json(departments)
@@ -64,7 +64,8 @@ export const getDepartment = async (req: Request , res: Response): Promise<void>
     }
 };
 
-export const getChildDepartments = async (req: Request , res: Response): Promise<void> => {
+// direct children only, not the whole tree
+export const listChildDepartments = async (req: Request , res: Response): Promise<void> => {
     try {
         const departmentId = req.params.departmentId as string
 

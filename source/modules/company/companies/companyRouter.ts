@@ -1,12 +1,16 @@
 import { Router } from "express";
-import { createCompany, deleteCompany, getCompanies, getCompany, updateCompany } from "./company";
+import { requireRole } from "../../../lib/auth.middleware";
+import { createCompany, listCompanies, getCompany, updateCompany, deleteCompany } from "./company";
 
 const router = Router()
 
-router.post("/" , createCompany)
-router.get("/", getCompanies)
+// Reads — anyone authenticated
+router.get("/" , listCompanies)
 router.get("/:id", getCompany)
-router.patch("/:id", updateCompany)
-router.delete("/:id", deleteCompany)
+
+// Writes — HR only (HR owns the data even though it isn't under hr/)
+router.post("/" , requireRole(["HR"]), createCompany)
+router.patch("/:id", requireRole(["HR"]), updateCompany)
+router.delete("/:id", requireRole(["HR"]), deleteCompany)
 
 export default router

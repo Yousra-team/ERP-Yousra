@@ -1,6 +1,6 @@
 # Session notes (Claude)
 
-Read this, `instructions.md` and `CLAUDE_CODE_BRIEF_hr_module.md` before starting work.
+Read this, `instructions.md` and `CLAUDE_CODE_BRIEF_hr_module.md` before starting work. `developer-manual.md` explains how the code is laid out.
 
 ## State as of 2026-11-18
 

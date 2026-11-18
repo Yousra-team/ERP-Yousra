@@ -70,7 +70,7 @@ export const linkUserToEmployee = async (req: Request , res: Response): Promise<
 
 export const changePassword = async (req: Request , res: Response): Promise<void> => {
    try {
-        // requireAuth puts the token payload on req.user
+        // requireAuth fills req.user, this is just in case the route gets wired without it
         if(!req.user) {
             res.status(401).json({message: "Not authenticated"})
             return
@@ -85,11 +85,22 @@ export const changePassword = async (req: Request , res: Response): Promise<void
 
         const data = result.data
 
-        // Tokens carry the matricule for employees and the username for other users,
-        // and both are stored in the username column
-        const user = await prisma.user.findUnique({
-            where : {username : req.user.userId}
+        // token userId is the matricule for linked employees, the username for everyone else (see loginEmployee)
+        // TODO: put user.Id in the token instead, then this is one lookup
+        const employee = await prisma.employee.findUnique({
+            where : {employeeMatricule : req.user.userId}
         });
+
+        let user
+        if(employee && employee.userId) {
+            user = await prisma.user.findUnique({
+                where : {Id : employee.userId}
+            });
+        } else {
+            user = await prisma.user.findUnique({
+                where : {username : req.user.userId}
+            });
+        }
 
         if(!user) {
             res.status(404).json({message: "User not found"})

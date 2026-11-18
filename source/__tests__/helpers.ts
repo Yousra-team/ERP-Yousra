@@ -1,6 +1,7 @@
 import app from "../app"
 import { prisma } from "../lib/prisma"
 import { signAccessToken } from "../lib/jwt"
+import { hashPassword } from "../lib/password"
 
 // The same app the server runs — tests hit it through supertest
 export const buildTestApp = () => {
@@ -76,15 +77,32 @@ export const seedSkill = async (name: string = "Accounting") => {
     })
 }
 
-// Company -> Department -> Position in one call, for everything that needs an org chart
-export const seedOrgStructure = async () => {
-    const company = await prisma.company.create({
+// password is hashed the same way createUser does it, so login works against it
+export const seedUser = async (username: string, password: string = "password123") => {
+    return await prisma.user.create({
+        data: {
+            username: username,
+            firstName: "Test",
+            lastName: "User",
+            role: "Employee",
+            password: await hashPassword(password)
+        }
+    })
+}
+
+export const seedCompany = async () => {
+    return await prisma.company.create({
         data: {
             name: "Yousra",
             creationDate: new Date("2010-01-01"),
             isParent: true
         }
     })
+}
+
+// Company -> Department -> Position in one call, for everything that needs an org chart
+export const seedOrgStructure = async () => {
+    const company = await seedCompany()
     const department = await prisma.department.create({
         data: {
             companyId: company.id,

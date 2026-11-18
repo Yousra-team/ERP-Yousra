@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, beforeEach } from "bun:test"
+﻿import { describe, test, expect, beforeAll, beforeEach } from "bun:test"
 import request from "supertest"
 import { buildTestApp, issueTestToken, resetDb, seedEmployee, seedOrgStructure } from "./helpers"
 import { prisma } from "../lib/prisma"
@@ -35,25 +35,25 @@ const seedContract = async (contractType: "CDI" | "CDD", endDate: Date | null) =
     })
 }
 
-describe("GET /api/v1/contracts", () => {
+describe("GET /api/v1/hr/contracts", () => {
     test("200 lists every contract", async () => {
         await seedContract("CDI", null)
         const res = await request(app)
-            .get("/api/v1/contracts")
+            .get("/api/v1/hr/contracts")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
         expect(res.body.length).toBe(1)
     })
 })
 
-describe("GET /api/v1/contracts/expiring", () => {
+describe("GET /api/v1/hr/contracts/expiring", () => {
     test("200 returns only fixed-term contracts ending within 60 days", async () => {
         const soon = new Date()
         soon.setDate(soon.getDate() + 30)
         await seedContract("CDD", soon)
         await seedContract("CDI", null) // open ended, must not appear
         const res = await request(app)
-            .get("/api/v1/contracts/expiring")
+            .get("/api/v1/hr/contracts/expiring")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
         expect(res.body.length).toBe(1)
@@ -61,11 +61,11 @@ describe("GET /api/v1/contracts/expiring", () => {
     })
 })
 
-describe("GET /api/v1/contracts/:contractId", () => {
+describe("GET /api/v1/hr/contracts/:contractId", () => {
     test("200 returns the contract", async () => {
         const contract = await seedContract("CDI", null)
         const res = await request(app)
-            .get(`/api/v1/contracts/${contract.contractId}`)
+            .get(`/api/v1/hr/contracts/${contract.contractId}`)
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
         expect(res.body.contractId).toBe(contract.contractId)
@@ -73,7 +73,7 @@ describe("GET /api/v1/contracts/:contractId", () => {
 
     test("404 for unknown contract", async () => {
         const res = await request(app)
-            .get("/api/v1/contracts/00000000-0000-0000-0000-000000000000")
+            .get("/api/v1/hr/contracts/00000000-0000-0000-0000-000000000000")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(404)
     })

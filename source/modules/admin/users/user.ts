@@ -18,11 +18,13 @@ export const createUser = async (req: Request , res: Response): Promise<void> =>
 
         const hashedPassword : string = await hashPassword(data.password)
 
+        // never send the password hash back, even hashed
         const createNewUser = await prisma.user.create({
             data: {
                 ...data,
                 password: hashedPassword
-            }
+            },
+            omit: { password: true }
         });
 
        res.status(201).json(createNewUser)
@@ -34,7 +36,9 @@ export const createUser = async (req: Request , res: Response): Promise<void> =>
 
 export const getUsers = async(req: Request , res: Response): Promise<void> => {
     try {
-        const users = await prisma.user.findMany();
+        const users = await prisma.user.findMany({
+            omit: { password: true }
+        });
         res.status(200).json(users)
     } catch (error) {
          res.status(500).json({message:"Internal Server Error"})
@@ -54,7 +58,8 @@ export const getUserById = async (req: Request , res: Response): Promise<void> =
          const user = await prisma.user.findUnique({
             where: {
                 Id: id
-            }
+            },
+            omit: { password: true }
          });
 
          if(!user) {
@@ -97,7 +102,8 @@ export const updateUser = async (req: Request , res: Response): Promise<void> =>
             },
             data: {
                 ...data
-            }
+            },
+            omit: { password: true }
         })
          res.status(200).json(updatedUser)
     } catch (error) {
@@ -115,10 +121,21 @@ export const deleteUser = async (req: Request , res: Response): Promise<void> =>
             return
         }
 
+        // a linked user can't go, HR has to unlink the employee first
+        const linkedEmployee = await prisma.employee.findUnique({
+            where: { userId: id }
+        })
+
+        if(linkedEmployee) {
+            res.status(409).json({message: `User is linked to employee ${linkedEmployee.employeeMatricule}, unlink them first with DELETE /api/v1/hr/employees/${linkedEmployee.employeeMatricule}/link-user`})
+            return
+        }
+
         const deletedUser = await prisma.user.delete({
             where: {
                 Id: id
-            }
+            },
+            omit: { password: true }
         })
 
         res.status(200).json(deletedUser)

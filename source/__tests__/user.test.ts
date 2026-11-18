@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, beforeEach } from "bun:test"
 import request from "supertest"
-import { buildTestApp, issueTestToken, resetDb, seedUser } from "./helpers"
+import { buildTestApp, issueTestToken, resetDb, seedEmployee, seedUser } from "./helpers"
 
 const app = buildTestApp()
 let adminToken: string
@@ -23,14 +23,14 @@ beforeEach(async () => {
 
 describe("POST /api/v1/admin/users", () => {
     // Happy path — admin opens an account
-    test("201 creates a user with a hashed password", async () => {
+    test("201 creates a user without sending the password back", async () => {
         const res = await request(app)
             .post("/api/v1/admin/users")
             .set("Authorization", `Bearer ${adminToken}`)
             .send(validUser)
         expect(res.status).toBe(201)
         expect(res.body.username).toBe("awa.ngono")
-        expect(res.body.password).not.toBe("password123")
+        expect(res.body.password).toBeUndefined()
     })
 
     test("400 on short password", async () => {
@@ -50,6 +50,7 @@ describe("GET /api/v1/admin/users/:userId", () => {
             .set("Authorization", `Bearer ${adminToken}`)
         expect(res.status).toBe(200)
         expect(res.body.Id).toBe(user.Id)
+        expect(res.body.password).toBeUndefined()
     })
 
     test("404 for unknown user", async () => {
@@ -88,5 +89,15 @@ describe("DELETE /api/v1/admin/users/:userId", () => {
             .delete(`/api/v1/admin/users/${user.Id}`)
             .set("Authorization", `Bearer ${adminToken}`)
         expect(res.status).toBe(200)
+    })
+
+    // linked users have to be unlinked from their employee first
+    test("409 when the user is linked to an employee", async () => {
+        const user = await seedUser("awa.ngono")
+        await seedEmployee("EMP-001", { userId: user.Id })
+        const res = await request(app)
+            .delete(`/api/v1/admin/users/${user.Id}`)
+            .set("Authorization", `Bearer ${adminToken}`)
+        expect(res.status).toBe(409)
     })
 })

@@ -30,7 +30,8 @@ Inside each router, reads are open to any logged-in user and writes are behind `
   - The number follows creation order, not hire date. It is the last part of the most recently created matricule, plus 1.
   - `hireDate` is required.
 - **Ids of records that belong to an employee** are built from the employee matricule by `nextRecordId` in `hr/employees/matricule.ts`, e.g. `EMP-2024-08-001-S1`. The letters are spouses S, children C, parents P, emergency contacts EC, academic credentials AC and contracts CT. Position assignments keep their database uuid.
-  - Numbering is per employee and per kind: the highest number already used, plus 1. A gap left by a delete is not refilled.
+  - Numbering is per employee and per kind: the highest number already used, plus 1. A gap left by a delete is not refilled. If the highest one is deleted, its number is handed out again; the developer accepted this.
+  - `employeeMatricule` stays in the spouse, child and credential request bodies on purpose (the developer's choice).
   - Clients never send these ids.
 - **Deleting a linked user** is refused with a 409 that tells the caller to unlink first with `DELETE /api/v1/hr/employees/:matricule/link-user`.
 
@@ -45,8 +46,6 @@ Inside each router, reads are open to any logged-in user and writes are behind `
 
 ## Open questions for the developer
 
-- If the record with the highest number is deleted, its number is handed out again. Preventing that fully needs a counter column, which means a schema change.
-- `SpouseSchema` and `academicCredentialSchema` still require `employeeMatricule` in the body, although the URL supplies it and the handler uses the URL. `childSchema` also accepts it.
 - If two employees are created at the same instant, they can get the same number and the second create fails with a 500. Is that acceptable for now?
 - `employee.schema.ts` and `spouse.schema.ts` still use `import { z }` instead of `import * as z`.
 - `auth.ts` still has an empty `linkUserToEmployee` stub. The real one is in `hr/employees/employee.ts`.

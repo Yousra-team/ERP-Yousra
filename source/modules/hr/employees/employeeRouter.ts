@@ -1,5 +1,5 @@
 ﻿import { Router } from "express";
-import { archiveEmployee, createEmployee, getAnEmployee, getArchivedEmployee, getEmployees, listArchivedEmployees, restoreEmployee, updateEmployee } from "./employee";
+import { archiveEmployee, createEmployee, getAnEmployee, getArchivedEmployee, getEmployees, linkUserToEmployee, listArchivedEmployees, restoreEmployee, unlinkUserFromEmployee, updateEmployee } from "./employee";
 import { addSpouse, endMarriage, getSpouse, listSpouses, updateSpouse } from "./spouses/spouse";
 import { addChild, deleteChild, getAChild, listChildren, updateChild } from "./children/child";
 import { addParent, deleteParent, getParent, getParents, updateParent } from "./parents/parent";
@@ -24,6 +24,10 @@ router.get("/archived/:matricule" , getArchivedEmployee)
 router.patch("/:matricule", requireRole(["HR"]), updateEmployee)
 router.get("/" , getEmployees)
 router.get("/:matricule", getAnEmployee)
+
+// Link user
+router.post("/:matricule/link-user", requireRole(["HR"]), linkUserToEmployee)
+router.delete("/:matricule/link-user", requireRole(["HR"]), unlinkUserFromEmployee)
 
 // ALLOW THE API TO BE ACCESSED BY BOTH HR AND EMPLOYEE
 // Spouse

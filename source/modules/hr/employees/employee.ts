@@ -1,8 +1,7 @@
 import type { Request, Response } from "express";
-import { archiveEmployeeSchema, createEmployeeSchema, updateEmployeeSchema } from "./employee.schema";
+import { archiveEmployeeSchema, createEmployeeSchema, linkUserSchema, updateEmployeeSchema } from "./employee.schema";
 import {prisma} from "../../../lib/prisma";
 import * as z from "zod";
-import { linkUserToEmployeeSchema } from "../../auth/authSchema";
 
 // CREATE AN EMPLOYEE
 export const createEmployee = async (req: Request , res: Response): Promise<void> => {
@@ -238,6 +237,91 @@ export const updateEmployee = async (req: Request , res: Response): Promise<void
         console.log(error)
     }
 };
+
+// HR links an existing user account to an employee record
+export const linkUserToEmployee = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const matricule: string = req.params.matricule as string
+
+        if(!matricule) {
+            res.status(400).json({message: "Invalid Parameters"})
+            return
+        }
+
+        const result = linkUserSchema.safeParse(req.body)
+        if(!result.success) {
+            const fieldErrors = z.flattenError(result.error)
+            res.status(400).json({message:"Bad Schema" , error: fieldErrors.fieldErrors})
+            return
+        }
+        const data = result.data
+
+        // Employee must exist
+        const employee = await prisma.employee.findUnique({ where: { employeeMatricule: matricule } })
+        if(!employee) {
+            res.status(404).json({message: "Employee not found"})
+            return
+        }
+
+        // and must not already be linked
+        if(employee.userId) {
+            res.status(409).json({message: "Employee already linked to a user"})
+            return
+        }
+
+        // User must exist
+        const user = await prisma.user.findUnique({ where: { Id: data.userId } })
+        if(!user) {
+            res.status(404).json({message: "User not found"})
+            return
+        }
+
+        // and must not already be linked to another employee
+        const existingLink = await prisma.employee.findUnique({ where: { userId: data.userId } })
+        if(existingLink) {
+            res.status(409).json({message: "User is already linked to another employee"})
+            return
+        }
+
+        const updated = await prisma.employee.update({
+            where: { employeeMatricule: matricule },
+            data: { userId: data.userId }
+        })
+
+        res.status(200).json(updated)
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
+    }
+}
+
+// Unlink when the person leaves but their user account stays
+export const unlinkUserFromEmployee = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const matricule: string = req.params.matricule as string
+
+        if(!matricule) {
+            res.status(400).json({message: "Invalid Parameters"})
+            return
+        }
+
+        const employee = await prisma.employee.findUnique({ where: { employeeMatricule: matricule } })
+        if(!employee) {
+            res.status(404).json({message: "Employee not found"})
+            return
+        }
+
+        const updated = await prisma.employee.update({
+            where: { employeeMatricule: matricule },
+            data: { userId: null }
+        })
+
+        res.status(200).json(updated)
+    } catch (error) {
+        res.status(500).json({message:"Internal server error"})
+        console.log(error)
+    }
+}
 
 
 

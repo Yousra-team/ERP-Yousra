@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { linkUserToEmployeeSchema } from "../../auth/authSchema";
 import { MaritalStatus, MarriageRegime, TerminationReason } from "../../../../generated/prisma/enums";
 
 export const maritalStatus = ["SINGLE",
@@ -36,4 +37,9 @@ export const updateEmployeeSchema = createEmployeeSchema.omit({
   employeeMatricule: true,
   niuNumber : true,
   cnpsNumber: true
+})
+
+// matricule already comes from the url, body only carries userId
+export const linkUserSchema = linkUserToEmployeeSchema.omit({
+  matricule: true
 })

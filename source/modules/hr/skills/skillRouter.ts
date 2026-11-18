@@ -1,12 +1,16 @@
 import { Router } from "express";
-import { createSkill, deleteSkill, getSkill, getSkills, updateSkill } from "./skill";
+import { requireRole } from "../../../lib/auth.middleware";
+import { createSkill, deleteSkill, getSkill, listSkills, updateSkill } from "./skill";
+
+// the skill catalog, employees and positions point at these rows
 
 const router = Router()
 
-router.post("/" , createSkill)
-router.get("/", getSkills)
+// Skills
+router.get("/" , listSkills)
 router.get("/:id", getSkill)
-router.patch("/:id", updateSkill)
-router.delete("/:id", deleteSkill)
+router.post("/" , requireRole(["HR"]), createSkill)
+router.patch("/:id", requireRole(["HR"]), updateSkill)
+router.delete("/:id", requireRole(["HR"]), deleteSkill)
 
 export default router

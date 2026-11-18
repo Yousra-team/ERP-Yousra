@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import {prisma} from "../../../lib/prisma";
 
-// Read-only module: contract writes go through /api/v1/hr/employees/:matricule/contracts
+// read only, writes go through /api/v1/hr/employees/:matricule/contracts
 
-export const getContracts = async (req: Request , res: Response): Promise<void> => {
+export const listAllContracts = async (req: Request , res: Response): Promise<void> => {
     try {
         const contracts = await prisma.contract.findMany();
         res.status(200).json(contracts)
@@ -13,8 +13,8 @@ export const getContracts = async (req: Request , res: Response): Promise<void> 
     }
 };
 
-// Fixed-term contracts (CDD, STAGE, TEMPORAIRE) ending within the next 60 days
-export const getExpiringContracts = async (req: Request , res: Response): Promise<void> => {
+// fixed term contracts (CDD, STAGE, TEMPORAIRE) ending in the next 60 days
+export const listExpiringContracts = async (req: Request , res: Response): Promise<void> => {
     try {
         const today = new Date()
         const limitDate = new Date()
@@ -37,7 +37,7 @@ export const getExpiringContracts = async (req: Request , res: Response): Promis
     }
 };
 
-export const getContract = async (req: Request , res: Response): Promise<void> => {
+export const getContractById = async (req: Request , res: Response): Promise<void> => {
     try {
         const contractId = req.params.contractId as string
 

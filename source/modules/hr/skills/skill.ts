@@ -27,7 +27,7 @@ export const createSkill = async (req: Request , res: Response): Promise<void> =
     }
 };
 
-export const getSkills = async (req: Request , res: Response): Promise<void> => {
+export const listSkills = async (req: Request , res: Response): Promise<void> => {
     try {
         const skills = await prisma.skill.findMany();
         res.status(200).json(skills)

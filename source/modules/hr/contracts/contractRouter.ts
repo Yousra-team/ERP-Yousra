@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { getContract, getContracts, getExpiringContracts } from "./contract";
+import { getContractById, listAllContracts, listExpiringContracts } from "./contract";
 
 const router = Router()
 
-router.get("/", getContracts)
-router.get("/expiring", getExpiringContracts) // must stay above /:contractId
-router.get("/:contractId", getContract)
+// Contracts (reads only)
+router.get("/" , listAllContracts)
+router.get("/expiring", listExpiringContracts) // must stay above /:contractId or express reads "expiring" as an id
+router.get("/:contractId", getContractById)
 
 export default router

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
+import { nextRecordId } from "../matricule";
 import * as z from "zod";
 import { hashPassword } from '../../../../lib/password';
 import { endMarriageSchema, SpouseSchema, updateSpouseSchema } from "./spouse.schema";
@@ -48,6 +49,9 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
 
      const data = result.data
 
+     // EMP-2024-08-001-S1, S2 ... ended marriages still count
+     const spouseMatricule = nextRecordId(matricule, "S", employee.spouses.map(s => s.spouseMatricule))
+
      const createMarriage = await prisma.$transaction(async (tx) => {
          const newSpouse = await tx.employeeSpouse.create({
             data: {
@@ -55,7 +59,7 @@ export const addSpouse = async (req: Request , res: Response): Promise<void> => 
                 lastName: data.lastName,
                 cniNumber: data.cniNumber,
                 dateOfBirth: data.dateOfBirth,
-                spouseMatricule: data.spouseMatricule, // caller supplies the matricule for now — we'll auto-generate later
+                spouseMatricule: spouseMatricule,
                 isDependent: data.isDependent,
                 marriageDate: data.marriageDate,
                 marriageCertificateNo: data.marriageCertificateNo,

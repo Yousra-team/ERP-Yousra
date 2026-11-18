@@ -3,7 +3,6 @@ import { gender } from "../employee.schema";
 import { SpouseEndReason } from "../../../../../generated/prisma/enums";
 
 export const SpouseSchema = z.object({
-  spouseMatricule: z.string().min(1, "Spouse matricule is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   dateOfBirth: z.coerce.date(), 
@@ -20,7 +19,6 @@ export type EmployeeFormInput = z.infer<typeof SpouseSchema>;
 
 export const updateSpouseSchema = SpouseSchema.omit({
   cniNumber : true,
-  spouseMatricule : true,
   employeeMatricule : true,
 });
 

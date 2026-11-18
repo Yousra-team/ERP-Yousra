@@ -20,3 +20,22 @@ export const generateEmployeeMatricule = async (hireDate: Date): Promise<string>
 
     return `EMP-${year}-${month}-${number}`
 };
+
+// ids for records that belong to an employee: spouses S, children C, parents P,
+// emergency contacts EC, academic credentials AC, contracts CT
+// EMP-2024-08-001 + "S" → EMP-2024-08-001-S1, then S2 ...
+// highest number used so far + 1, so a gap left by a delete is never refilled
+export const nextRecordId = (employeeMatricule: string, letter: string, existingIds: string[]): string => {
+    const prefix = `${employeeMatricule}-${letter}`
+
+    let highest = 0
+    for (const id of existingIds) {
+        // old uuid ids give NaN and are skipped
+        const number = Number(id.slice(prefix.length))
+        if(id.startsWith(prefix) && number > highest) {
+            highest = number
+        }
+    }
+
+    return `${prefix}${highest + 1}`
+};

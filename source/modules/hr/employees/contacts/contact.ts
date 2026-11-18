@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
+import { nextRecordId } from "../matricule";
 import * as z from "zod";
 import { emergencyContactSchema, updateContactSchema } from "./contactSchema";
 
@@ -21,9 +22,17 @@ export const addContact = async (req: Request , res: Response): Promise<void> =>
                
       const data = result.data
 
+      // EMP-2024-08-001-EC1, EC2 ...
+      const existing = await prisma.emergencyContact.findMany({
+        where: { employeeMatricule : matricule },
+        select: { contactId : true }
+      })
+      const contactId = nextRecordId(matricule, "EC", existing.map(c => c.contactId))
+
       const newContact = await prisma.emergencyContact.create({
         data: {
             ...data,
+            contactId : contactId,
             employeeMatricule : matricule
         }
       });

@@ -32,6 +32,7 @@ const validContract = () => ({
 const seedContract = async () => {
     return await prisma.contract.create({
         data: {
+            contractId: "EMP-001-CT1",
             employeeMatricule: "EMP-001",
             contractType: "CDI",
             signedDate: new Date("2024-01-01"),
@@ -50,7 +51,7 @@ describe("POST /api/v1/hr/employees/:matricule/contracts", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validContract())
         expect(res.status).toBe(201)
-        expect(res.body.employeeMatricule).toBe("EMP-001")
+        expect(res.body.contractId).toBe("EMP-001-CT1")
     })
 
     test("400 on bad contractType", async () => {

@@ -6,8 +6,8 @@ import { prisma } from "../lib/prisma"
 const app = buildTestApp()
 let hrToken: string
 
+// no parentMatricule, the backend builds it from the employee matricule
 const validParent = {
-    parentMatricule: "PA-2026-001",
     firstName: "Paul",
     lastName: "Ngono",
     isAlive: true,
@@ -20,6 +20,7 @@ const seedParent = async () => {
     await prisma.employeeParent.create({
         data: {
             ...validParent,
+            parentMatricule: "EMP-001-P1",
             dateOfBirth: new Date(validParent.dateOfBirth),
             employeeMatricule: "EMP-001"
         }
@@ -42,7 +43,7 @@ describe("POST /api/v1/hr/employees/:matricule/parents", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validParent)
         expect(res.status).toBe(201)
-        expect(res.body.parentMatricule).toBe("PA-2026-001")
+        expect(res.body.parentMatricule).toBe("EMP-001-P1")
     })
 
     test("400 on missing isAlive", async () => {
@@ -70,10 +71,10 @@ describe("GET /api/v1/hr/employees/:matricule/parents/:parentMatricule", () => {
     test("200 returns the parent", async () => {
         await seedParent()
         const res = await request(app)
-            .get("/api/v1/hr/employees/EMP-001/parents/PA-2026-001")
+            .get("/api/v1/hr/employees/EMP-001/parents/EMP-001-P1")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
-        expect(res.body.parentMatricule).toBe("PA-2026-001")
+        expect(res.body.parentMatricule).toBe("EMP-001-P1")
     })
 
     test("404 for unknown parent", async () => {
@@ -88,7 +89,7 @@ describe("PATCH /api/v1/hr/employees/:matricule/parents/:parentMatricule", () =>
     test("200 updates the parent", async () => {
         await seedParent()
         const res = await request(app)
-            .patch("/api/v1/hr/employees/EMP-001/parents/PA-2026-001")
+            .patch("/api/v1/hr/employees/EMP-001/parents/EMP-001-P1")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ isDependent: true })
         expect(res.status).toBe(200)
@@ -98,7 +99,7 @@ describe("PATCH /api/v1/hr/employees/:matricule/parents/:parentMatricule", () =>
     test("400 on bad gender", async () => {
         await seedParent()
         const res = await request(app)
-            .patch("/api/v1/hr/employees/EMP-001/parents/PA-2026-001")
+            .patch("/api/v1/hr/employees/EMP-001/parents/EMP-001-P1")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ gender: "other" })
         expect(res.status).toBe(400)
@@ -109,7 +110,7 @@ describe("DELETE /api/v1/hr/employees/:matricule/parents/:parentMatricule", () =
     test("200 deletes the parent", async () => {
         await seedParent()
         const res = await request(app)
-            .delete("/api/v1/hr/employees/EMP-001/parents/PA-2026-001")
+            .delete("/api/v1/hr/employees/EMP-001/parents/EMP-001-P1")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
     })

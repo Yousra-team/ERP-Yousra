@@ -5,8 +5,8 @@ import { buildTestApp, issueTestToken, resetDb, seedEmployee, seedSpouse } from 
 const app = buildTestApp()
 let hrToken: string
 
+// no spouseMatricule, the backend builds it from the employee matricule
 const validSpouse = {
-    spouseMatricule: "SP-2026-001",
     firstName: "Marie",
     lastName: "Ngono",
     dateOfBirth: "1992-05-10",
@@ -33,7 +33,7 @@ describe("POST /api/v1/hr/employees/:matricule/spouses", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validSpouse)
         expect(res.status).toBe(201)
-        expect(res.body.spouseMatricule).toBe("SP-2026-001")
+        expect(res.body.spouseMatricule).toBe("EMP-001-S1")
     })
 
     test("400 on missing cniNumber", async () => {
@@ -56,7 +56,7 @@ describe("POST /api/v1/hr/employees/:matricule/spouses", () => {
 
     test("409 when a monogamous employee already has a spouse", async () => {
         await seedEmployee("EMP-001")
-        await seedSpouse("EMP-001", "SP-2026-000")
+        await seedSpouse("EMP-001", "EMP-001-S0")
         const res = await request(app)
             .post("/api/v1/hr/employees/EMP-001/spouses")
             .set("Authorization", `Bearer ${hrToken}`)
@@ -68,7 +68,7 @@ describe("POST /api/v1/hr/employees/:matricule/spouses", () => {
 describe("GET /api/v1/hr/employees/:matricule/spouses", () => {
     test("200 lists the spouses", async () => {
         await seedEmployee("EMP-001")
-        await seedSpouse("EMP-001", "SP-2026-001")
+        await seedSpouse("EMP-001", "EMP-001-S1")
         const res = await request(app)
             .get("/api/v1/hr/employees/EMP-001/spouses")
             .set("Authorization", `Bearer ${hrToken}`)
@@ -80,9 +80,9 @@ describe("GET /api/v1/hr/employees/:matricule/spouses", () => {
 describe("GET /api/v1/hr/employees/:matricule/spouses/:spouseMatricule", () => {
     test("200 returns the spouse", async () => {
         await seedEmployee("EMP-001")
-        await seedSpouse("EMP-001", "SP-2026-001")
+        await seedSpouse("EMP-001", "EMP-001-S1")
         const res = await request(app)
-            .get("/api/v1/hr/employees/EMP-001/spouses/SP-2026-001")
+            .get("/api/v1/hr/employees/EMP-001/spouses/EMP-001-S1")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
         expect(res.body.spouses.length).toBe(1)
@@ -90,7 +90,7 @@ describe("GET /api/v1/hr/employees/:matricule/spouses/:spouseMatricule", () => {
 
     test("404 for unknown employee", async () => {
         const res = await request(app)
-            .get("/api/v1/hr/employees/UNKNOWN/spouses/SP-2026-001")
+            .get("/api/v1/hr/employees/UNKNOWN/spouses/EMP-001-S1")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(404)
     })
@@ -99,9 +99,9 @@ describe("GET /api/v1/hr/employees/:matricule/spouses/:spouseMatricule", () => {
 describe("PATCH /api/v1/hr/employees/:matricule/spouses/:spouseMatricule", () => {
     test("200 updates the spouse", async () => {
         await seedEmployee("EMP-001")
-        await seedSpouse("EMP-001", "SP-2026-001")
+        await seedSpouse("EMP-001", "EMP-001-S1")
         const res = await request(app)
-            .patch("/api/v1/hr/employees/EMP-001/spouses/SP-2026-001")
+            .patch("/api/v1/hr/employees/EMP-001/spouses/EMP-001-S1")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({
                 firstName: "Updated",
@@ -117,7 +117,7 @@ describe("PATCH /api/v1/hr/employees/:matricule/spouses/:spouseMatricule", () =>
 
     test("404 for unknown employee", async () => {
         const res = await request(app)
-            .patch("/api/v1/hr/employees/UNKNOWN/spouses/SP-2026-001")
+            .patch("/api/v1/hr/employees/UNKNOWN/spouses/EMP-001-S1")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ isDependent: false })
         expect(res.status).toBe(404)
@@ -127,9 +127,9 @@ describe("PATCH /api/v1/hr/employees/:matricule/spouses/:spouseMatricule", () =>
 describe("POST /api/v1/hr/employees/:matricule/spouses/:spouseMatricule/end", () => {
     test("200 ends the marriage", async () => {
         await seedEmployee("EMP-001")
-        await seedSpouse("EMP-001", "SP-2026-001")
+        await seedSpouse("EMP-001", "EMP-001-S1")
         const res = await request(app)
-            .post("/api/v1/hr/employees/EMP-001/spouses/SP-2026-001/end")
+            .post("/api/v1/hr/employees/EMP-001/spouses/EMP-001-S1/end")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ endedOn: "2026-02-01", endReason: "divorce" })
         expect(res.status).toBe(200)
@@ -138,9 +138,9 @@ describe("POST /api/v1/hr/employees/:matricule/spouses/:spouseMatricule/end", ()
 
     test("400 on bad endReason", async () => {
         await seedEmployee("EMP-001")
-        await seedSpouse("EMP-001", "SP-2026-001")
+        await seedSpouse("EMP-001", "EMP-001-S1")
         const res = await request(app)
-            .post("/api/v1/hr/employees/EMP-001/spouses/SP-2026-001/end")
+            .post("/api/v1/hr/employees/EMP-001/spouses/EMP-001-S1/end")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ endedOn: "2026-02-01", endReason: "boredom" })
         expect(res.status).toBe(400)

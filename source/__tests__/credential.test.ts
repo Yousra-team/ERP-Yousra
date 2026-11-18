@@ -22,6 +22,7 @@ const seedCredential = async () => {
     return await prisma.academicCredential.create({
         data: {
             ...validCredential,
+            id: "EMP-001-AC1",
             startDate: new Date(validCredential.startDate),
             completionDate: new Date(validCredential.completionDate),
             issueDate: new Date(validCredential.issueDate)
@@ -45,7 +46,7 @@ describe("POST /api/v1/hr/employees/:matricule/academic-credentials", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validCredential)
         expect(res.status).toBe(201)
-        expect(res.body.degreeName).toBe("BSc Accounting")
+        expect(res.body.id).toBe("EMP-001-AC1")
     })
 
     test("400 on missing degreeName", async () => {

@@ -3,7 +3,6 @@ import { gender } from "../employee.schema";
 
 
 export const employeeParentSchema = z.object({
-  parentMatricule: z.string().min(1, "Parent matricule is required"), // caller supplies it for now
   firstName: z.string(),
   lastName: z.string(),
   isAlive: z.boolean(),
@@ -12,6 +11,4 @@ export const employeeParentSchema = z.object({
   isDependent: z.boolean(),
 });
 
-export const updateParentSchema = employeeParentSchema.omit({
-  parentMatricule : true
-}).partial()
+export const updateParentSchema = employeeParentSchema.partial()

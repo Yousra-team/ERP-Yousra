@@ -6,10 +6,10 @@ import { prisma } from "../lib/prisma"
 const app = buildTestApp()
 let hrToken: string
 
+// no childMatricule, the backend builds it from the employee matricule
 const validChild = {
-    childMatricule: "CH-2026-001",
     employeeMatricule: "EMP-001",
-    spouseMatricule: "SP-2026-001",
+    spouseMatricule: "EMP-001-S1",
     firstName: "Junior",
     lastName: "Ngono",
     dateOfBirth: "2018-03-15",
@@ -20,7 +20,7 @@ const validChild = {
 
 const seedChild = async () => {
     await prisma.employeeChild.create({
-        data: { ...validChild, dateOfBirth: new Date(validChild.dateOfBirth) }
+        data: { ...validChild, childMatricule: "EMP-001-C1", dateOfBirth: new Date(validChild.dateOfBirth) }
     })
 }
 
@@ -31,7 +31,7 @@ beforeAll(async () => {
 beforeEach(async () => {
     await resetDb()
     await seedEmployee("EMP-001")
-    await seedSpouse("EMP-001", "SP-2026-001")
+    await seedSpouse("EMP-001", "EMP-001-S1")
 })
 
 describe("POST /api/v1/hr/employees/:matricule/children", () => {
@@ -41,7 +41,18 @@ describe("POST /api/v1/hr/employees/:matricule/children", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validChild)
         expect(res.status).toBe(201)
-        expect(res.body.childMatricule).toBe("CH-2026-001")
+        expect(res.body.childMatricule).toBe("EMP-001-C1")
+    })
+
+    // continues from the highest number this employee already has
+    test("201 second child gets C2", async () => {
+        await seedChild()
+        const res = await request(app)
+            .post("/api/v1/hr/employees/EMP-001/children")
+            .set("Authorization", `Bearer ${hrToken}`)
+            .send(validChild)
+        expect(res.status).toBe(201)
+        expect(res.body.childMatricule).toBe("EMP-001-C2")
     })
 
     test("400 on missing firstName", async () => {
@@ -69,10 +80,10 @@ describe("GET /api/v1/hr/employees/:matricule/children/:childMatricule", () => {
     test("200 returns the child", async () => {
         await seedChild()
         const res = await request(app)
-            .get("/api/v1/hr/employees/EMP-001/children/CH-2026-001")
+            .get("/api/v1/hr/employees/EMP-001/children/EMP-001-C1")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
-        expect(res.body.childMatricule).toBe("CH-2026-001")
+        expect(res.body.childMatricule).toBe("EMP-001-C1")
     })
 
     test("404 for unknown child", async () => {
@@ -87,7 +98,7 @@ describe("PATCH /api/v1/hr/employees/:matricule/children/:childMatricule", () =>
     test("200 updates the child", async () => {
         await seedChild()
         const res = await request(app)
-            .patch("/api/v1/hr/employees/EMP-001/children/CH-2026-001")
+            .patch("/api/v1/hr/employees/EMP-001/children/EMP-001-C1")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ isDependent: false })
         expect(res.status).toBe(200)
@@ -97,7 +108,7 @@ describe("PATCH /api/v1/hr/employees/:matricule/children/:childMatricule", () =>
     test("400 on bad date", async () => {
         await seedChild()
         const res = await request(app)
-            .patch("/api/v1/hr/employees/EMP-001/children/CH-2026-001")
+            .patch("/api/v1/hr/employees/EMP-001/children/EMP-001-C1")
             .set("Authorization", `Bearer ${hrToken}`)
             .send({ dateOfBirth: "not-a-date" })
         expect(res.status).toBe(400)
@@ -108,7 +119,7 @@ describe("DELETE /api/v1/hr/employees/:matricule/children/:childMatricule", () =
     test("200 deletes the child", async () => {
         await seedChild()
         const res = await request(app)
-            .delete("/api/v1/hr/employees/EMP-001/children/CH-2026-001")
+            .delete("/api/v1/hr/employees/EMP-001/children/EMP-001-C1")
             .set("Authorization", `Bearer ${hrToken}`)
         expect(res.status).toBe(200)
     })

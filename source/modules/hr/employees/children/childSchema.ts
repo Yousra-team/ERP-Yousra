@@ -9,7 +9,6 @@ export const childSchema = z.object({
     spouseMatricule : z.string(),
     employeeMatricule : z.string(),
     dateOfBirth : z.coerce.date(),
-    childMatricule : z.string(), // Not supposed to be there
     gender : z.enum(gender)
 })
 

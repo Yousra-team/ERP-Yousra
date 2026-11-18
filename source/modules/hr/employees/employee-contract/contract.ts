@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
+import { nextRecordId } from "../matricule";
 import * as z from "zod";
 import { createContractSchema, terminateContractSchema, updateContractSchema } from "./contractSchema";
 
@@ -22,9 +23,17 @@ export const createContract = async (req: Request , res: Response): Promise<void
 
         const data = result.data
 
+        // EMP-2024-08-001-CT1, CT2 ...
+        const existing = await prisma.contract.findMany({
+            where: { employeeMatricule : matricule },
+            select: { contractId : true }
+        })
+        const contractId = nextRecordId(matricule, "CT", existing.map(c => c.contractId))
+
         const newContract = await prisma.contract.create({
             data: {
                 ...data,
+                contractId : contractId,
                 employeeMatricule : matricule
             }
         });

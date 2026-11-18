@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
+import { nextRecordId } from "../matricule";
 import * as z from "zod";
 import { employeeParentSchema, updateParentSchema } from "./parentSchema";
 
@@ -20,9 +21,17 @@ export const addParent = async (req: Request , res: Response): Promise<void> => 
               
      const data = result.data
 
+     // EMP-2024-08-001-P1, P2 ...
+     const existing = await prisma.employeeParent.findMany({
+        where: { employeeMatricule : matricule },
+        select: { parentMatricule : true }
+     })
+     const parentMatricule = nextRecordId(matricule, "P", existing.map(p => p.parentMatricule))
+
      const newParent = await prisma.employeeParent.create({
         data : {
             ...data,
+            parentMatricule : parentMatricule,
             employeeMatricule : matricule
         }
      });

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {prisma} from "../../../../lib/prisma";
+import { nextRecordId } from "../matricule";
 import * as z from "zod";
 import { academicCredentialSchema, updateCredentialSchema } from "./credentialSchema";
 
@@ -20,10 +21,19 @@ export const addCredential = async (req: Request , res: Response): Promise<void>
         }
 
         const data = result.data
-        
+
+        // EMP-2024-08-001-AC1, AC2 ...
+        const existing = await prisma.academicCredential.findMany({
+            where: { employeeMatricule : matricule },
+            select: { id : true }
+        })
+        const credentialId = nextRecordId(matricule, "AC", existing.map(c => c.id))
+
         const newCredential = await prisma.academicCredential.create({
             data: {
                 ...data,
+                id : credentialId,
+                employeeMatricule : matricule
             }
         });
      

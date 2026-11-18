@@ -17,7 +17,7 @@ const validContact = {
 
 const seedContact = async () => {
     return await prisma.emergencyContact.create({
-        data: { ...validContact, relationship: "SIBLING", employeeMatricule: "EMP-001" }
+        data: { ...validContact, relationship: "SIBLING", contactId: "EMP-001-EC1", employeeMatricule: "EMP-001" }
     })
 }
 
@@ -37,7 +37,7 @@ describe("POST /api/v1/hr/employees/:matricule/emergency-contacts", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validContact)
         expect(res.status).toBe(200)
-        expect(res.body.firstName).toBe("Alice")
+        expect(res.body.contactId).toBe("EMP-001-EC1")
     })
 
     test("400 on invalid phone", async () => {

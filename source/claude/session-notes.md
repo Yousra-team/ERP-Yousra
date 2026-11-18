@@ -4,7 +4,7 @@ Read this, `instructions.md` and `CLAUDE_CODE_BRIEF_hr_module.md` before startin
 
 ## State as of 2026-11-18
 
-All 6 steps of the brief are coded. Type-check passes, and all 124 tests pass.
+All 6 steps of the brief are coded. Type-check passes, and all 125 tests pass.
 
 | Mount | Router |
 |---|---|
@@ -29,6 +29,9 @@ Inside each router, reads are open to any logged-in user and writes are behind `
 - **Employee matricule** is built by the backend as `EMP-<hire year>-<hire month>-<number>`, e.g. `EMP-2024-08-001`. The code is in `hr/employees/matricule.ts`.
   - The number follows creation order, not hire date. It is the last part of the most recently created matricule, plus 1.
   - `hireDate` is required.
+- **Ids of records that belong to an employee** are built from the employee matricule by `nextRecordId` in `hr/employees/matricule.ts`, e.g. `EMP-2024-08-001-S1`. The letters are spouses S, children C, parents P, emergency contacts EC, academic credentials AC and contracts CT. Position assignments keep their database uuid.
+  - Numbering is per employee and per kind: the highest number already used, plus 1. A gap left by a delete is not refilled.
+  - Clients never send these ids.
 - **Deleting a linked user** is refused with a 409 that tells the caller to unlink first with `DELETE /api/v1/hr/employees/:matricule/link-user`.
 
 ## Decisions made where the brief was silent or contradicted itself
@@ -42,7 +45,8 @@ Inside each router, reads are open to any logged-in user and writes are behind `
 
 ## Open questions for the developer
 
-- What format should spouse, child and parent matricules use? The developer wants them generated like employee matricules, but those records have no hire date. Until this is answered, they are still sent by the caller. Emergency contacts already get a database uuid.
+- If the record with the highest number is deleted, its number is handed out again. Preventing that fully needs a counter column, which means a schema change.
+- `SpouseSchema` and `academicCredentialSchema` still require `employeeMatricule` in the body, although the URL supplies it and the handler uses the URL. `childSchema` also accepts it.
 - If two employees are created at the same instant, they can get the same number and the second create fails with a 500. Is that acceptable for now?
 - `employee.schema.ts` and `spouse.schema.ts` still use `import { z }` instead of `import * as z`.
 - `auth.ts` still has an empty `linkUserToEmployee` stub. The real one is in `hr/employees/employee.ts`.

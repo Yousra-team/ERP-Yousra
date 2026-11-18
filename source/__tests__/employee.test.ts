@@ -6,9 +6,8 @@ const app = buildTestApp()
 let hrToken: string
 let employeeToken: string
 
-// no user in here anymore, HR links one later with /link-user
+// no user and no matricule in here, the backend builds the matricule
 const validEmployee = {
-    employeeMatricule: "EMP-001",
     firstName: "Awa",
     lastName: "Ngono",
     gender: "male",
@@ -39,8 +38,19 @@ describe("POST /api/v1/hr/employees", () => {
             .set("Authorization", `Bearer ${hrToken}`)
             .send(validEmployee)
         expect(res.status).toBe(201)
-        expect(res.body.employeeMatricule).toBe("EMP-001")
+        expect(res.body.employeeMatricule).toBe("EMP-2020-01-001")
         expect(res.body.userId).toBeNull()
+    })
+
+    // number follows creation order, year-month follows the hire date
+    test("201 next employee gets the next number", async () => {
+        await seedEmployee("EMP-2020-01-001")
+        const res = await request(app)
+            .post("/api/v1/hr/employees")
+            .set("Authorization", `Bearer ${hrToken}`)
+            .send({ ...validEmployee, hireDate: "2024-08-15" })
+        expect(res.status).toBe(201)
+        expect(res.body.employeeMatricule).toBe("EMP-2024-08-002")
     })
 
     // Validation failure
@@ -52,16 +62,6 @@ describe("POST /api/v1/hr/employees", () => {
             .send(body)
         expect(res.status).toBe(400)
         expect(res.body.message).toBe("Bad Schema")
-    })
-
-    // Same matricule twice
-    test("409 on duplicate matricule", async () => {
-        await seedEmployee("EMP-001")
-        const res = await request(app)
-            .post("/api/v1/hr/employees")
-            .set("Authorization", `Bearer ${hrToken}`)
-            .send(validEmployee)
-        expect(res.status).toBe(409)
     })
 
     // Writes are HR only
@@ -113,25 +113,35 @@ describe("GET /api/v1/hr/employees/:matricule", () => {
 })
 
 describe("PATCH /api/v1/hr/employees/:matricule", () => {
-    // update schema isn't partial so the whole body goes up
-    test("200 updates the employee", async () => {
+    // only the fields that change go up
+    test("200 updates only the fields sent", async () => {
         await seedEmployee("EMP-001")
-        const { employeeMatricule, ...body } = validEmployee
         const res = await request(app)
             .patch("/api/v1/hr/employees/EMP-001")
             .set("Authorization", `Bearer ${hrToken}`)
-            .send({ ...body, MarriageRegime: "POLYGAMOUS" })
+            .send({ MarriageRegime: "POLYGAMOUS" })
         expect(res.status).toBe(200)
         expect(res.body.marriageRegime).toBe("POLYGAMOUS")
+        expect(res.body.firstName).toBe("Test")
+    })
+
+    // matricule in the body is dropped, it never changes
+    test("200 ignores a matricule in the body", async () => {
+        await seedEmployee("EMP-001")
+        const res = await request(app)
+            .patch("/api/v1/hr/employees/EMP-001")
+            .set("Authorization", `Bearer ${hrToken}`)
+            .send({ employeeMatricule: "EMP-999", firstName: "Awa" })
+        expect(res.status).toBe(200)
+        expect(res.body.employeeMatricule).toBe("EMP-001")
     })
 
     test("400 on bad gender", async () => {
         await seedEmployee("EMP-001")
-        const { employeeMatricule, ...body } = validEmployee
         const res = await request(app)
             .patch("/api/v1/hr/employees/EMP-001")
             .set("Authorization", `Bearer ${hrToken}`)
-            .send({ ...body, gender: "other" })
+            .send({ gender: "other" })
         expect(res.status).toBe(400)
     })
 })

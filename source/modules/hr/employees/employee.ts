@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { archiveEmployeeSchema, createEmployeeSchema, linkUserSchema, updateEmployeeSchema } from "./employee.schema";
 import {prisma} from "../../../lib/prisma";
+import { generateEmployeeMatricule } from "./matricule";
 import * as z from "zod";
 
 // CREATE AN EMPLOYEE
@@ -15,15 +16,8 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
         
         const data = result.data
 
-        // matricule is the primary key so it can't be reused
-        const existing = await prisma.employee.findUnique({
-            where: { employeeMatricule : data.employeeMatricule }
-        });
-
-        if(existing) {
-            res.status(409).json({message: "An employee with this matricule already exists"})
-            return
-        }
+        // backend builds the matricule, the client never sends one
+        const matricule = await generateEmployeeMatricule(data.hireDate)
 
         // Employee has no user attached yet — HR links one via /link-user
         const employee = await prisma.employee.create({
@@ -31,7 +25,7 @@ export const createEmployee = async (req: Request , res: Response): Promise<void
                 firstName : data.firstName,
                 lastName: data.lastName,
                 middleName: data.middleName,
-                employeeMatricule: data.employeeMatricule,
+                employeeMatricule: matricule,
                 hireDate: data.hireDate,
                 dateOfBirth: data.dateOfBirth,
                 gender: data.gender,
@@ -115,8 +109,7 @@ export const archiveEmployee = async (req: Request , res: Response): Promise<voi
 
          const data = result.data
 
-         // We keep the record; just flag it archived
-         // TODO: actually terminate the active contract and end assignments, the message below promises it
+         // We keep the record; just flag it archived so normal reads skip it
          const archivedEmployee = await prisma.employee.update({
             where: {
               employeeMatricule : matricule,
@@ -127,7 +120,7 @@ export const archiveEmployee = async (req: Request , res: Response): Promise<voi
             }
          })
 
-     res.status(200).json({employee : archivedEmployee , message : "Employee was archived; 1 contract terminated , 1 assignment ended"})
+     res.status(200).json({employee : archivedEmployee , message : "Employee was archived"})
     } catch (error) {
         res.status(500).json({message:"Internal server error"})
         console.log(error)
@@ -218,6 +211,7 @@ export const updateEmployee = async (req: Request , res: Response): Promise<void
         const data = result.data
 
         // schema calls it MarriageRegime but the column is marriageRegime, so map it by hand
+        // fields left out stay undefined and prisma leaves them untouched
         const { MarriageRegime, ...otherFields } = data
 
         const updateEmployee = await prisma.employee.update({

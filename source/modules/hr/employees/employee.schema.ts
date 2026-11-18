@@ -10,8 +10,8 @@ export const maritalStatus = ["SINGLE",
 
 export const gender = ["male", "female"] as const;
 
+// no employeeMatricule here, the backend generates it from hireDate
 export const createEmployeeSchema = z.object({
-  employeeMatricule: z.string(),
   firstName: z.string().min(1, "First name is required"),
   middleName: z.string().optional(),
   lastName: z.string(),
@@ -33,11 +33,11 @@ export const archiveEmployeeSchema = z.object({
   effectiveDate: z.coerce.date("Yeah this is not a date")
 });
 
+// send only what changes, the matricule can never change
 export const updateEmployeeSchema = createEmployeeSchema.omit({
-  employeeMatricule: true,
   niuNumber : true,
   cnpsNumber: true
-})
+}).partial()
 
 // matricule already comes from the url, body only carries userId
 export const linkUserSchema = linkUserToEmployeeSchema.omit({

@@ -68,6 +68,8 @@ source/
 | `/api/v1/company/companies` | logged in | [companies/companyRouter.ts](../modules/company/companies/companyRouter.ts) |
 | `/api/v1/company/departments` | logged in | [departmentRouter.ts](../modules/company/departments/departmentRouter.ts) |
 
+The full request/response contract for the frontend is in [openapi.yaml](openapi.yaml). **When you add or change a route, update that file too.**
+
 **Access rule everywhere:** GET is open to any logged-in user. POST, PATCH and DELETE need `requireRole(["HR"])`, placed on the route itself.
 
 Routes under `/api/v1/hr/employees/:matricule/...`:

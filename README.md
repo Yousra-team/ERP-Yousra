@@ -61,6 +61,8 @@ All routes are under `/api/v1`. Every route except `/auth` needs a `Bearer` toke
 
 Any logged-in user can read; writes need the HR role. The full route list is in the [developer manual](source/claude/developer-manual.md#3-url-map).
 
+**Frontend / API clients:** every endpoint, request body and response is described in the OpenAPI spec [source/claude/openapi.yaml](source/claude/openapi.yaml). Open it in Swagger Editor or Postman, or feed it to an AI assistant or a client generator.
+
 ## Project layout
 
 ```

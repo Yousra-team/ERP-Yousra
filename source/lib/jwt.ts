@@ -1,7 +1,15 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
 const alg = "HS256";
+
+// Read the secret lazily so it sees the env after dotenv.config() runs.
+// Reading at module load would freeze an empty key: ES-module imports
+// evaluate before server.ts's dotenv.config() statement.
+function getSecret() {
+  const raw = process.env.JWT_SECRET;
+  if (!raw) throw new Error("JWT_SECRET is not set");
+  return new TextEncoder().encode(raw);
+}
 
 export interface AuthPayload extends JWTPayload {
   userId: string;
@@ -13,7 +21,7 @@ export async function signAccessToken(payload: AuthPayload) {
     .setProtectedHeader({ alg })
     .setIssuedAt()
     .setExpirationTime("7d") // Untill Franck learns to use Refresh Tokens
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function signRefreshToken(payload: AuthPayload) {
@@ -21,12 +29,12 @@ export async function signRefreshToken(payload: AuthPayload) {
     .setProtectedHeader({ alg })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function verifyToken<T extends JWTPayload = AuthPayload>(
   token: string,
 ): Promise<T> {
-  const { payload } = await jwtVerify(token, secret);
+  const { payload } = await jwtVerify(token, getSecret());
   return payload as T;
 }

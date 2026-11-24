@@ -1,9 +1,15 @@
+import dotenv from "dotenv";
+
 import express from "express"
 import hrRouter from "./modules/hr/hrRouter"
 import authRouter from "./modules/auth/authRouter"
 import userRouter from "./modules/admin/users/userRouter"
 import companyRouter from "./modules/company/companyRouter"
 import { requireAuth, requireRole } from "./lib/auth.middleware"
+
+dotenv.config({
+  path:['.env']
+});
 
 const app = express()
 

@@ -27,7 +27,7 @@
   "scripts": {
     "dev": "doppler run -- bun run --watch source/server.ts",
     "build": "bunx prisma generate",
-    "start": "bunx prisma migrate deploy  && bun run source/server.ts",
+    "start": "bunx prisma migrate deploy && bun run source/server.ts",
     "migrate": "doppler run -- bunx prisma migrate dev",
     "generate": "doppler run -- bunx prisma generate",
     "test": "doppler run --config dev -- bun test",
